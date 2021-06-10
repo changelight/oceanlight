@@ -1,0 +1,2 @@
+add_subdirectory(liboceanlight)
+add_subdirectory(oceanlight)
