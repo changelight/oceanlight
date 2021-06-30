@@ -1,10 +1,10 @@
 #include <iostream>
 #include <liboceanlight/util.hpp>
 #include <config.h>
+#include "args.hpp"
 
 int main(int argc, char **argv)
 {
-    std::cout << PROJECT_NAME " Ver. " PROJECT_VER << std::endl;
-    lo_print_version();
+    parse_args(argc, argv);
     return EXIT_SUCCESS;
 }
