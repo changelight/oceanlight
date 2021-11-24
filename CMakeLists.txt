@@ -8,9 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 project(Oceanlight VERSION 0.0.1 LANGUAGES CXX)
 
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(Boost 1.76 REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
+find_package(Vulkan REQUIRED)
+include_directories(${Vulkan_INCLUDE_DIRS})
+
 add_executable(oceanlight)
-target_compile_options(oceanlight PRIVATE "$<$<CONFIG:DEBUG>:${CMAKE_CXXFLAGS}>")
 add_subdirectory(src)
