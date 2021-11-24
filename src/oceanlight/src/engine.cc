@@ -1,8 +1,8 @@
 #include <iostream>
+#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-#include <vulkan/vulkan.h>
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -31,6 +31,10 @@ int glfw_init()
 
 int vk_init()
 {
+    uint32_t extension_count = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
+    std::cout << extension_count << " extensions supported\n";
+
     return 1;
 }
 
