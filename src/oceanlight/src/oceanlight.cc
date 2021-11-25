@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     run(window);
 
     glfwDestroyWindow(window);
+    glfwTerminate();
 
     return EXIT_SUCCESS;
 }

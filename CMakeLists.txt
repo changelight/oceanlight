@@ -11,6 +11,21 @@ set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.76 REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
+include(FetchContent)
+FetchContent_Declare(
+    glfw
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw
+    UPDATE_COMMAND ${GIT_EXECUTABLE} pull)
+FetchContent_MakeAvailable(glfw)
+
+FetchContent_Declare(
+    glm
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glm
+    GIT_REPOSITORY https://github.com/g-truc/glm
+    UPDATE_COMMAND ${GIT_EXECUTABLE} pull)
+FetchContent_MakeAvailable(glm)
+
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
