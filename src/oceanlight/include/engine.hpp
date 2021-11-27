@@ -4,5 +4,6 @@
 int run(GLFWwindow*);
 int glfw_init(void);
 void glfw_set_callbacks(GLFWwindow*);
+GLFWwindow *create_window(int, int);
 int vk_init();
 #endif /* ENGINE_H */

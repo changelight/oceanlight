@@ -1,23 +1,24 @@
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <liboceanlight/util.hpp>
 #include <config.h>
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
 #include "args.hpp"
 #include "engine.hpp"
 
 int main(int argc, char **argv)
 {
     int rv;
-    bool quit_flag = false;
-    rv = parse_args(argc, argv, &quit_flag);
+
+    struct args_struct args = {};
+    rv = parse_args(argc, argv, &args);
 
     if (!rv)
     {
         return EXIT_FAILURE;
     }
 
-    if (quit_flag)
+    if (args.quit_flag)
         return EXIT_SUCCESS;
     
     rv = glfw_init();
@@ -25,7 +26,7 @@ int main(int argc, char **argv)
     if (!rv)
         return EXIT_FAILURE;
     
-    GLFWwindow *window = create_window();
+    GLFWwindow *window = create_window(args.width, args.height);
     if (!window)
     {
         return EXIT_FAILURE;

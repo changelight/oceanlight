@@ -10,10 +10,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glfwSetWindowShouldClose(window, GL_TRUE);
 }
 
-GLFWwindow* create_window()
+GLFWwindow* create_window(int width, int height)
 {   
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow *window = glfwCreateWindow(800, 600, "Vulkan Window", nullptr, nullptr);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    GLFWwindow *window = glfwCreateWindow(width, height, "Vulkan Window", nullptr, nullptr);
 
     return window;
 }
