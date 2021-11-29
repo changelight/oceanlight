@@ -1,6 +1,6 @@
 #include <iostream>
 #include <liboceanlight/util.hpp>
- #include <config.h>
+#include <config.h>
 
 int lo_print_version()
 {

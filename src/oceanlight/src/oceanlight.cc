@@ -1,8 +1,8 @@
 #include <iostream>
-#include <liboceanlight/util.hpp>
 #include <config.h>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <liboceanlight/util.hpp>
 #include "args.hpp"
 #include "engine.hpp"
 

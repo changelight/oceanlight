@@ -1,5 +1,5 @@
-#ifndef ARGS_H
-#define ARGS_H
+#ifndef ARGS_HPP
+#define ARGS_HPP
 #include <GLFW/glfw3.h>
 struct args_struct
 {
@@ -15,4 +15,4 @@ struct args_struct
 
 int parse_args(int, char**, struct args_struct*);
 GLFWwindow* create_window();
-#endif /* ARGS_H */
+#endif /* ARGS_HPP */

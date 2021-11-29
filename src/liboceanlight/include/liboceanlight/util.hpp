@@ -1,4 +1,4 @@
-#ifndef TEST_H
-#define TEST_H
+#ifndef UTIL_HPP
+#define UTIL_HPP
 int lo_print_version(void);
-#endif /* TEST_H */
+#endif /* UTIL_HPP */
