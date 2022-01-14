@@ -8,7 +8,9 @@
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
         glfwSetWindowShouldClose(window, GL_TRUE);
+    }
 }
 
 void error_callback(int code, const char* description)
@@ -16,29 +18,39 @@ void error_callback(int code, const char* description)
     lo_print_error(code, description);
 }
 
-
-void glfw_set_callbacks(GLFWwindow *window)
+int oceanlight_glfw_init()
 {
     glfwSetErrorCallback(error_callback);
-    glfwSetKeyCallback(window, key_callback);
-}
 
-int glfw_init()
-{
-    glfwInit();
+    int rv = glfwInit();
+
+    if (rv == GLFW_FALSE)
+    {
+        return 0;
+    }
+
     return 1;
 }
 
-GLFWwindow* create_window(int width, int height)
+int oceanlight_vulkan_init()
+{
+    VkInstance instance;
+    
+    return 1;
+}
+
+GLFWwindow* oceanlight_create_window(int width, int height)
 {   
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     GLFWwindow *window = glfwCreateWindow(width, height, "Vulkan Window", nullptr, nullptr);
 
+    glfwSetKeyCallback(window, key_callback);
+
     return window;
 }
 
-int vk_init()
+int oceanlight_vk_init()
 {
     uint32_t extension_count = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
@@ -47,7 +59,7 @@ int vk_init()
     return 1;
 }
 
-int run(GLFWwindow *window)
+int oceanlight_engine_run(GLFWwindow *window)
 {
     while(!glfwWindowShouldClose(window))
     {

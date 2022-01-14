@@ -1,34 +1,30 @@
 #include <iostream>
-#include <boost/program_options.hpp>
+#include <cxxopts.hpp>
 #include <liboceanlight/util.hpp>
 #include <config.h>
 #include "args.hpp"
 
-namespace po = boost::program_options;
-
-int parse_args(int argc, char **argv, struct args_struct *args)
+int oceanlight_parse_args(int argc, char **argv, struct oceanlight_args_struct *args)
 {
     try
     {
-        po::options_description desc("Allowed arguments");
-        desc.add_options()
-        ("help,h", "Produce help message")
-        ("version,v", "Print version information")
-        ("width,x", po::value<int>(), "Set window width in pixels")
-        ("height,y", po::value<int>(), "Set window height in pixels");
+        cxxopts::Options options("oceanlight", "Chase your star");
+        options.add_options()
+        ("h,help", "Produce help message")
+        ("v,version", "Print version information")
+        ("x,width", "Set window width in pixels", cxxopts::value<int>())
+        ("y,height", "Set window height in pixels", cxxopts::value<int>());
 
-        po::variables_map vm;
-        po::store(po::parse_command_line(argc, argv, desc), vm);
-        po::notify(vm);
+        auto result = options.parse(argc, argv);
 
-        if (vm.count("help"))
+        if (result.count("help"))
         {
-            std::cout << desc;
+            std::cout << options.help();
             args->quit_flag = true;
             return 1;
         }
 
-        if (vm.count("version"))
+        if (result.count("version"))
         {
             std::cout << PROJECT_NAME " Ver. " PROJECT_VER << std::endl;
             lo_print_version();
@@ -36,11 +32,11 @@ int parse_args(int argc, char **argv, struct args_struct *args)
             return 1;
         }
 
-        if (vm.count("width"))
-            args->width = vm["width"].as<int>();
+        if (result.count("width"))
+            args->width = result["width"].as<int>();
 
-        if (vm.count("height"))
-            args->height = vm["height"].as<int>();
+        if (result.count("height"))
+            args->height = result["height"].as<int>();
     }
 
     catch (std::exception &e)

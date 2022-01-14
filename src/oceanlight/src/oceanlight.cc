@@ -10,36 +10,45 @@ int main(int argc, char **argv)
 {
     int rv;
 
-    struct args_struct args = {};
-    rv = parse_args(argc, argv, &args);
-
-    if (!rv)
+    struct oceanlight_args_struct args = {};
+    rv = oceanlight_parse_args(argc, argv, &args);
+    if (rv == 0)
     {
         return EXIT_FAILURE;
     }
 
-    if (args.quit_flag)
+    if (args.quit_flag == true)
+    {
         return EXIT_SUCCESS;
+    }
     
-    rv = glfw_init();
-
-    if (!rv)
+    rv = oceanlight_glfw_init();
+    if (rv == 0)
+    {
         return EXIT_FAILURE;
+    }
     
-    GLFWwindow *window = create_window(args.width, args.height);
-    if (!window)
+    GLFWwindow *window = oceanlight_create_window(args.width, args.height);
+    if (window == NULL)
+    {
+        glfwTerminate();
+        return EXIT_FAILURE;
+    }
+    
+    rv = oceanlight_vk_init();
+    if (rv == 0)
     {
         return EXIT_FAILURE;
     }
 
-    glfw_set_callbacks(window);
-
-    rv = vk_init();
-
-    if (!rv)
-        return EXIT_FAILURE;
-
-    run(window);
+    try
+    {
+        oceanlight_engine_run(window);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
 
     glfwDestroyWindow(window);
     glfwTerminate();
