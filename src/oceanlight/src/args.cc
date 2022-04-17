@@ -4,7 +4,7 @@
 #include <config.h>
 #include "args.hpp"
 
-int oceanlight_parse_args(int argc, char **argv, struct oceanlight_args_struct *args)
+void oceanlight_parse_args(int argc, char **argv, struct oceanlight_args *args)
 {
     try
     {
@@ -20,16 +20,16 @@ int oceanlight_parse_args(int argc, char **argv, struct oceanlight_args_struct *
         if (result.count("help"))
         {
             std::cout << options.help();
-            args->quit_flag = true;
-            return 1;
+            args->exit_flag = true;
+            return;
         }
 
         if (result.count("version"))
         {
             std::cout << PROJECT_NAME " Ver. " PROJECT_VER << std::endl;
             lo_print_version();
-            args->quit_flag = true;
-            return 1;
+            args->exit_flag = true;
+            return;
         }
 
         if (result.count("width"))
@@ -42,14 +42,14 @@ int oceanlight_parse_args(int argc, char **argv, struct oceanlight_args_struct *
     catch (std::exception &e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
-        return 0;
+        throw;
     }
 
     catch (...)
     {
         std::cerr << "Error: unknown error" << std::endl;
-        return 0;
+        throw;
     }
 
-    return 1;
+    return;
 }
