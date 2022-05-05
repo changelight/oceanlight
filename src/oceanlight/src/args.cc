@@ -27,7 +27,7 @@ void oceanlight_parse_args(int argc, char **argv, struct oceanlight_args *args)
         if (result.count("version"))
         {
             std::cout << PROJECT_NAME " Ver. " PROJECT_VER << std::endl;
-            lo_print_version();
+            lo::print(std::cout, lo::version_string());
             args->exit_flag = true;
             return;
         }

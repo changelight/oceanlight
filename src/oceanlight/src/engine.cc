@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
-#include <liboceanlight/error.hpp>
+#include <liboceanlight/util.hpp>
 #include <config.h>
 #include "engine.hpp"
 
@@ -72,5 +72,5 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void error_callback(int code, const char* description)
 {
-    lo_print_error(code, description);
+    lo::print(std::cerr, code, description);
 }
