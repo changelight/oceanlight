@@ -4,6 +4,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <liboceanlight/util.hpp>
+#include <liboceanlight/error.hpp>
 #include <config.h>
 #include "engine.hpp"
 
@@ -39,10 +40,8 @@ void oceanlight_engine_instance::init()
     VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create instance");
+        throw std::runtime_error("Failed to create Vulkan instance");
     }
-    
-    return;
 }
 
 void oceanlight_engine_instance::run(GLFWwindow *window)
@@ -53,8 +52,6 @@ void oceanlight_engine_instance::run(GLFWwindow *window)
         //glfwSwapBuffers(window);
         glfwWaitEvents();
     }
-
-    return;
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -72,5 +69,5 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void error_callback(int code, const char* description)
 {
-    lo::print(std::cerr, code, description);
+    lo::print_error(code, description);
 }

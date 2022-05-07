@@ -4,18 +4,15 @@
 #include <string>
 namespace lo
 {
-    template <typename T>
-    void print(std::ostream &out, const T& t)
+    /* Avoid using this in hotpaths for now since I don't know if the
+    parameter unpacking is done via single-stepforwarding or recursion.
+    If it is recursion, it will be slower. Also because we flush the stream. */
+    template <typename... Args>
+    std::ostream& generic_print(std::ostream& out, Args&&... args)
     {
-        out << t << std::endl;
-    };
-
-    template <typename T, typename... Args>
-    void print(std::ostream &out, const T& t, const Args... args)
-    {
-        out << t << std::endl;
-        print(out, args...);
-    };
+        ((out << args << "\n"), ... ) << std::endl;
+        return out;
+    }
 
     std::string version_string(void);
 }

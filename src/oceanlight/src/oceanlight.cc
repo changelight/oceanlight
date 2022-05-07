@@ -10,8 +10,6 @@ int main(int argc, char **argv)
 {
     try
     {
-        int rv;
-
         struct oceanlight_args args;
         oceanlight_parse_args(argc, argv, &args);
 
@@ -29,7 +27,7 @@ int main(int argc, char **argv)
 
     catch (const std::exception &e)
     {
-        std::cerr << "An exception occurred: " << e.what() << std::endl;
+        std::cerr << e.what() << std::endl;
     }
 
     return EXIT_SUCCESS;
