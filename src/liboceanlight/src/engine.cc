@@ -1,20 +1,16 @@
 #include <iostream>
+#include <vector>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-#include <glm/mat4x4.hpp>
-#include <glm/vec4.hpp>
-#include <liboceanlight/util.hpp>
-#include <liboceanlight/error.hpp>
+//#include <glm/mat4x4.hpp>
+//#include <glm/vec4.hpp>
+#include <liboceanlight/engine.hpp>
 #include <config.h>
-#include "engine.hpp"
 
-void oceanlight_engine_instance::init()
+void liboceanlight::engine::init()
 {
-    VkInstance instance;
-
-    uint32_t extension_count = 0;
+    uint32_t extension_count {0};
     vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-    std::cout << extension_count << " Vulkan extensions supported" << std::endl;
 
     VkApplicationInfo app_info {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -27,27 +23,37 @@ void oceanlight_engine_instance::init()
     VkInstanceCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
+    create_info.enabledLayerCount = 0;
 
-    uint32_t glfw_extension_count = 0;
+    uint32_t glfw_extension_count {0};
     const char **glfw_extensions;
-
     glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
     create_info.enabledExtensionCount = glfw_extension_count;
     create_info.ppEnabledExtensionNames = glfw_extensions;
-    create_info.enabledLayerCount = 0;
 
-    VkResult result = vkCreateInstance(&create_info, nullptr, &instance);
+    VkResult result = vkCreateInstance(&create_info, nullptr, &vulkan_instance);
     if (result != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create Vulkan instance");
     }
+
+    uint32_t vulkan_extension_count {0};
+    vkEnumerateInstanceExtensionProperties(nullptr, &vulkan_extension_count, nullptr);
+
+    std::vector<VkExtensionProperties> vulkan_extensions(vulkan_extension_count);
+    vkEnumerateInstanceExtensionProperties(nullptr, &vulkan_extension_count, vulkan_extensions.data());
+
+    std::cout << extension_count << " Vulkan extensions supported:\n";
+    for (const auto &extension : vulkan_extensions)
+    {
+        std::cout << extension.extensionName << "\n";
+    }
 }
 
-void oceanlight_engine_instance::run(GLFWwindow *window)
+void liboceanlight::engine::run(liboceanlight::window &window)
 {
-    glfwSetKeyCallback(window, key_callback);
-    while(!glfwWindowShouldClose(window))
+    while(!window.should_close())
     {
         //glfwSwapBuffers(window);
         glfwWaitEvents();
@@ -69,5 +75,5 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void error_callback(int code, const char* description)
 {
-    lo::print_error(code, description);
+    std::cerr << "Error " << code << ": " << description << "\n";
 }

@@ -1,28 +1,27 @@
 #include <iostream>
+#include <vector>
 #include <config.h>
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
+#include <liboceanlight/engine.hpp>
 #include <liboceanlight/util.hpp>
 #include "args.hpp"
-#include "engine.hpp"
 
 int main(int argc, char **argv)
 {
     try
     {
-        struct oceanlight_args args;
-        oceanlight_parse_args(argc, argv, &args);
+        struct oceanlight::args args;
+        oceanlight::parse_args(argc, argv, args);
 
         if (args.exit_flag == true)
         {
             return EXIT_SUCCESS;
         }
 
-        oceanlight_engine_instance engine;
-        oceanlight_window window(args.width, args.height);
+        static liboceanlight::engine engine;
+        liboceanlight::window window(args.width, args.height);
         
         engine.init();
-        engine.run(window.window_pointer);
+        engine.run(window);
     }
 
     catch (const std::exception &e)

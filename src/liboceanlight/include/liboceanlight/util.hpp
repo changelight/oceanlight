@@ -1,8 +1,8 @@
-#ifndef UTIL_HPP
-#define UTIL_HPP
+#ifndef LIBOCEANLIGHT_UTIL_HPP_INCLUDED
+#define LIBOCEANLIGHT_UTIL_HPP_INCLUDED
 #include <iostream>
 #include <string>
-namespace lo
+namespace liboceanlight
 {
     /* Avoid using this in hotpaths for now since I don't know if the
     parameter unpacking is done via single-stepforwarding or recursion.
@@ -16,4 +16,4 @@ namespace lo
 
     std::string version_string(void);
 }
-#endif /* UTIL_HPP */
+#endif /* LIBOCEANLIGHT_UTIL_HPP_INCLUDED */

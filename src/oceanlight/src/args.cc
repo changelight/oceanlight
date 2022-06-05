@@ -4,7 +4,7 @@
 #include <config.h>
 #include "args.hpp"
 
-void oceanlight_parse_args(int argc, char **argv, struct oceanlight_args *args)
+void oceanlight::parse_args(int argc, char **argv, struct oceanlight::args &args)
 {
     try
     {
@@ -15,27 +15,27 @@ void oceanlight_parse_args(int argc, char **argv, struct oceanlight_args *args)
         ("x,width", "Set window width in pixels", cxxopts::value<int>())
         ("y,height", "Set window height in pixels", cxxopts::value<int>());
 
-        auto result = options.parse(argc, argv);
+        auto result {options.parse(argc, argv)};
 
         if (result.count("help"))
         {
             std::cout << options.help();
-            args->exit_flag = true;
+            args.exit_flag = true;
             return;
         }
 
         if (result.count("version"))
         {
-            std::cout << PROJECT_NAME " Ver. " PROJECT_VER "\n" << lo::version_string() << std::endl;
-            args->exit_flag = true;
+            std::cout << PROJECT_NAME " Ver. " PROJECT_VER "\n" << liboceanlight::version_string() << std::endl;
+            args.exit_flag = true;
             return;
         }
 
         if (result.count("width"))
-            args->width = result["width"].as<int>();
+            args.width = result["width"].as<int>();
 
         if (result.count("height"))
-            args->height = result["height"].as<int>();
+            args.height = result["height"].as<int>();
     }
 
     catch (std::exception &e)

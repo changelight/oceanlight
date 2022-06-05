@@ -1,15 +1,16 @@
-#ifndef ARGS_HPP
-#define ARGS_HPP
+#ifndef OCEANLIGHT_ARGS_HPP_INCLUDED
+#define OCEANLIGHT_ARGS_HPP_INCLUDED
 #include <iostream>
-#include <GLFW/glfw3.h>
-struct oceanlight_args
+namespace oceanlight
 {
-    int width, height;
-    bool exit_flag;
+    struct args
+    {
+        int width, height;
+        bool exit_flag;
 
-    oceanlight_args() : width(800), height(600), exit_flag(false) {};
-};
+        args() : width(800), height(600), exit_flag(false){};
+    };
 
-void oceanlight_parse_args(int, char**, struct oceanlight_args*);
-GLFWwindow* create_window();
-#endif /* ARGS_HPP */
+    void parse_args(int, char **, struct oceanlight::args&);
+}
+#endif /* OCEANLIGHT_ARGS_HPP_INCLUDED */

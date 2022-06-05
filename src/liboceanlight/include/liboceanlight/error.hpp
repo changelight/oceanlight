@@ -1,8 +1,8 @@
-#ifndef ERROR_HPP
-#define ERROR_HPP
+#ifndef LIBOCEANLIGHT_ERROR_HPP_INCLUDED
+#define LIBOCEANLIGHT_ERROR_HPP_INCLUDED
 #include <iostream>
-namespace lo
+namespace liboceanlight
 {
     void print_error(int, const char *);
 }
-#endif /* ERROR_HPP */
+#endif /* LIBOCEANLIGHT_ERROR_HPP_INCLUDED */
