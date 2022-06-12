@@ -4,16 +4,16 @@
 #include <config.h>
 #include "args.hpp"
 
-void oceanlight::parse_args(int argc, char **argv, struct oceanlight::args &args)
+void oceanlight::parse_args(int argc, char** argv, struct oceanlight::args& args)
 {
     try
     {
         cxxopts::Options options("oceanlight", "Chase your star");
         options.add_options()
-        ("h,help", "Produce help message")
-        ("v,version", "Print version information")
-        ("x,width", "Set window width in pixels", cxxopts::value<int>())
-        ("y,height", "Set window height in pixels", cxxopts::value<int>());
+            ("h,help", "Produce help message")
+            ("v,version", "Print version information")
+            ("x,width", "Set window width in pixels", cxxopts::value<int>())
+            ("y,height", "Set window height in pixels", cxxopts::value<int>());
 
         auto result {options.parse(argc, argv)};
 
@@ -38,7 +38,7 @@ void oceanlight::parse_args(int argc, char **argv, struct oceanlight::args &args
             args.height = result["height"].as<int>();
     }
 
-    catch (std::exception &e)
+    catch (std::exception& e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
         throw;

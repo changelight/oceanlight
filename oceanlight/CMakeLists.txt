@@ -2,7 +2,6 @@ project(Oceanlight VERSION 0.0.1 LANGUAGES CXX)
 configure_file(config.h.in config.h)
 include(CTest)
 
-
 include(FetchContent)
 FetchContent_Declare(
     cxxopts

@@ -11,6 +11,6 @@ namespace oceanlight
         args() : width(640), height(480), exit_flag(false) {};
     };
 
-    void parse_args(int, char **, struct oceanlight::args&);
+    void parse_args(int, char**, struct oceanlight::args&);
 }
 #endif /* OCEANLIGHT_ARGS_HPP_INCLUDED */

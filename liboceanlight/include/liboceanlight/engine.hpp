@@ -3,7 +3,8 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <string>
-#include <exception>
+#include <vector>
+#include <stdexcept>
 
 void error_callback(int, const char *);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -13,7 +14,7 @@ namespace liboceanlight
     class window
     {
         int width {640}, height {480};
-        std::string window_name {"Oceanlight"};
+        const std::string window_name {"Oceanlight"};
         GLFWwindow *window_pointer {nullptr};
 
         public:
@@ -46,6 +47,8 @@ namespace liboceanlight
     class engine
     {
         VkInstance vulkan_instance {nullptr};
+        const std::vector<const char*> validation_layers {"VK_LAYER_KHRONOS_validation"};
+        const bool validation_layers_enable {true};
 
     public:
         engine()
@@ -66,6 +69,8 @@ namespace liboceanlight
         }
 
         void init();
+        void instantiate();
+        bool check_validation_layer_support();
         void run(liboceanlight::window&);
     };
 }
