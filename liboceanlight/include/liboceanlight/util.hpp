@@ -10,7 +10,7 @@ namespace liboceanlight
     template <typename... Args>
     std::ostream& generic_print(std::ostream& out, Args&&... args)
     {
-        ((out << args << "\n"), ... ) << std::endl;
+        ((out << args << "\n"), ...) << std::endl;
         return out;
     }
 

@@ -6,8 +6,8 @@
 #include <vector>
 #include <stdexcept>
 
-void error_callback(int, const char *);
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+void error_callback(int, const char*);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 namespace liboceanlight
 {
@@ -15,9 +15,9 @@ namespace liboceanlight
     {
         int width {640}, height {480};
         const std::string window_name {"Oceanlight"};
-        GLFWwindow *window_pointer {nullptr};
+        GLFWwindow* window_pointer {nullptr};
 
-        public:
+    public:
         window()
         {
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -49,6 +49,7 @@ namespace liboceanlight
         VkInstance vulkan_instance {nullptr};
         const std::vector<const char*> validation_layers {"VK_LAYER_KHRONOS_validation"};
         const bool validation_layers_enable {true};
+        VkDebugUtilsMessengerEXT debug_messenger;
 
     public:
         engine()
@@ -64,13 +65,31 @@ namespace liboceanlight
 
         ~engine()
         {
+            if (validation_layers_enable)
+            {
+                DestroyDebugUtilsMessengerEXT(vulkan_instance, debug_messenger, nullptr);
+            }
+
             vkDestroyInstance(vulkan_instance, nullptr);
             glfwTerminate();
         }
 
+        static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+            VkDebugUtilsMessageTypeFlagsEXT type,
+            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+            void* user_data);
+        VkDebugUtilsMessengerCreateInfoEXT create_debug_messenger();
+
+        static void DestroyDebugUtilsMessengerEXT(
+            VkInstance instance,
+            VkDebugUtilsMessengerEXT debugMessenger,
+            const VkAllocationCallbacks* pAllocator);
+        
         void init();
         void instantiate();
         bool check_validation_layer_support();
+        std::vector<const char*> get_required_extensions();
         void run(liboceanlight::window&);
     };
 }
