@@ -1,10 +1,12 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
-#include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <stdexcept>
+#include <liboceanlight/util.hpp>
+#include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
+#include <config.h>
 
 void error_callback(int, const char*);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -46,12 +48,13 @@ namespace liboceanlight
 
     class engine
     {
-        VkInstance vulkan_instance {nullptr};
         const std::vector<const char*> validation_layers {"VK_LAYER_KHRONOS_validation"};
         const bool validation_layers_enable {true};
-        VkDebugUtilsMessengerEXT debug_messenger;
+        VkDebugUtilsMessengerEXT debug_messenger {};
 
     public:
+        VkInstance vulkan_instance {nullptr};
+
         engine()
         {
             glfwSetErrorCallback(error_callback);
@@ -65,27 +68,11 @@ namespace liboceanlight
 
         ~engine()
         {
-            if (validation_layers_enable)
-            {
-                DestroyDebugUtilsMessengerEXT(vulkan_instance, debug_messenger, nullptr);
-            }
-
             vkDestroyInstance(vulkan_instance, nullptr);
             glfwTerminate();
         }
 
-        static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-            VkDebugUtilsMessageTypeFlagsEXT type,
-            const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-            void* user_data);
-        VkDebugUtilsMessengerCreateInfoEXT create_debug_messenger();
-
-        static void DestroyDebugUtilsMessengerEXT(
-            VkInstance instance,
-            VkDebugUtilsMessengerEXT debugMessenger,
-            const VkAllocationCallbacks* pAllocator);
-        
+        void cleanup();
         void init();
         void instantiate();
         bool check_validation_layer_support();
@@ -93,5 +80,4 @@ namespace liboceanlight
         void run(liboceanlight::window&);
     };
 }
-
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */

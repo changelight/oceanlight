@@ -3,9 +3,10 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/engine.hpp>
+#include <liboceanlight/util.hpp>
 #include <config.h>
 
-VKAPI_ATTR VkBool32 VKAPI_CALL liboceanlight::engine::debug_callback(
+VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT type,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
@@ -17,20 +18,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL liboceanlight::engine::debug_callback(
         throw std::runtime_error("Vulkan validation layer detected a fatal error");
     }
     return VK_FALSE;
-}
-
-VkDebugUtilsMessengerCreateInfoEXT liboceanlight::engine::create_debug_messenger()
-{
-    VkDebugUtilsMessengerCreateInfoEXT create_info {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    create_info.pfnUserCallback = liboceanlight::engine::debug_callback;
-    create_info.pUserData = nullptr; // Optional
-
-    return create_info;
 }
 
 VkResult CreateDebugUtilsMessengerEXT(
@@ -50,7 +37,7 @@ VkResult CreateDebugUtilsMessengerEXT(
     }
 }
 
-void liboceanlight::engine::DestroyDebugUtilsMessengerEXT(
+void DestroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT debugMessenger,
     const VkAllocationCallbacks* pAllocator)
@@ -103,42 +90,62 @@ bool liboceanlight::engine::check_validation_layer_support()
     return true;
 }
 
+VkDebugUtilsMessengerCreateInfoEXT populate_debug_messenger_create_info()
+{
+    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info {};
+    debug_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debug_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debug_messenger_create_info.pfnUserCallback = debug_callback;
+    debug_messenger_create_info.pUserData = nullptr; // Optional
+    return debug_messenger_create_info;
+}
+
+VkApplicationInfo populate_vulkan_application_info()
+{
+    VkApplicationInfo vulkan_application_info {};
+    vulkan_application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    vulkan_application_info.pApplicationName = PROJECT_NAME;
+    vulkan_application_info.applicationVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
+    vulkan_application_info.pEngineName = PROJECT_NAME;
+    vulkan_application_info.engineVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
+    vulkan_application_info.apiVersion = VK_API_VERSION_1_2;
+    return vulkan_application_info;
+}
+
 void liboceanlight::engine::instantiate()
 {
     uint32_t extension_count {0};
     vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 
-    VkApplicationInfo app_info {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = PROJECT_NAME;
-    app_info.applicationVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
-    app_info.pEngineName = PROJECT_NAME;
-    app_info.engineVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
-    app_info.apiVersion = VK_API_VERSION_1_2;
+    VkApplicationInfo app_info = populate_vulkan_application_info();
 
     VkInstanceCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
 
+    bool validation_layer_support = check_validation_layer_support();
     std::vector<const char*> required_extensions = get_required_extensions();
-
-    VkDebugUtilsMessengerCreateInfoEXT messenger_create_info;
+    VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info;
     if (validation_layers_enable)
     {
-        bool validation_layer_support = check_validation_layer_support();
         if (!validation_layer_support)
         {
             throw std::runtime_error("Validation layers requested, but none available.");
         }
 
         required_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        messenger_create_info = create_debug_messenger();
+        debug_messenger_create_info = populate_debug_messenger_create_info();
         create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
         create_info.ppEnabledLayerNames = validation_layers.data();
+        create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debug_messenger_create_info;
     }
     else
     {
         create_info.enabledLayerCount = 0;
+        create_info.pNext = nullptr;
     }
 
     create_info.enabledExtensionCount = required_extensions.size();
@@ -167,9 +174,12 @@ void liboceanlight::engine::instantiate()
         throw std::runtime_error("Failed to create Vulkan instance");
     }
 
-    if (CreateDebugUtilsMessengerEXT(vulkan_instance, &messenger_create_info, nullptr, &debug_messenger) != VK_SUCCESS)
+    if (validation_layers_enable && validation_layer_support)
     {
-        throw std::runtime_error("failed to set up debug messenger!");
+        if (CreateDebugUtilsMessengerEXT(vulkan_instance, &debug_messenger_create_info, nullptr, &debug_messenger) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to set up debug messenger!");
+        }
     }
 }
 
@@ -180,6 +190,11 @@ void liboceanlight::engine::run(liboceanlight::window& window)
         //glfwSwapBuffers(window);
         glfwWaitEvents();
     }
+}
+
+void liboceanlight::engine::cleanup()
+{
+    DestroyDebugUtilsMessengerEXT(vulkan_instance, debug_messenger, nullptr);
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)

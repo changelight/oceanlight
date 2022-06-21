@@ -20,9 +20,9 @@ int main(int argc, char** argv)
 
         static liboceanlight::engine engine;
         liboceanlight::window window;
-
         engine.instantiate();
         engine.run(window);
+        engine.cleanup();
     }
 
     catch (const std::exception& e)
