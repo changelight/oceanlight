@@ -1,4 +1,6 @@
 #include <iostream>
+#include <vulkan/vulkan.hpp>
+#include <liboceanlight/engine.hpp>
 #include <liboceanlight/util.hpp>
 #include <config.h>
 
