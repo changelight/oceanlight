@@ -1,11 +1,12 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
+#include <iostream>
 #include <string>
 #include <vector>
-#include <stdexcept>
+#include <liboceanlight/util.hpp>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-#include <liboceanlight/util.hpp>
+#include <config.h>
 
 void error_callback(int, const char*);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -52,6 +53,8 @@ namespace liboceanlight
         VkDebugUtilsMessengerEXT debug_utils_messenger;
 
     public:
+        VkInstance vulkan_instance {nullptr};
+
         engine()
         {
             glfwSetErrorCallback(error_callback);
@@ -78,5 +81,4 @@ namespace liboceanlight
         void run(liboceanlight::window&);
     };
 }
-
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */

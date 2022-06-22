@@ -1,6 +1,7 @@
 #ifndef LIBOCEANLIGHT_UTIL_HPP_INCLUDED
 #define LIBOCEANLIGHT_UTIL_HPP_INCLUDED
 #include <iostream>
+#include <vulkan/vulkan.h>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
