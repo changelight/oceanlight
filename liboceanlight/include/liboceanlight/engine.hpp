@@ -48,9 +48,9 @@ namespace liboceanlight
 
     class engine
     {
-        const std::vector<const char*> validation_layers {"VK_LAYER_KHRONOS_validation"};
+        VkInstance vulkan_instance {nullptr};
         const bool validation_layers_enable {true};
-        VkDebugUtilsMessengerEXT debug_messenger {};
+        VkDebugUtilsMessengerEXT debug_utils_messenger;
 
     public:
         VkInstance vulkan_instance {nullptr};
@@ -68,15 +68,16 @@ namespace liboceanlight
 
         ~engine()
         {
+            if (debug_utils_messenger)
+            {
+                DestroyDebugUtilsMessengerEXT(vulkan_instance, debug_utils_messenger, nullptr);
+            }
+
             vkDestroyInstance(vulkan_instance, nullptr);
             glfwTerminate();
         }
 
-        void cleanup();
-        void init();
         void instantiate();
-        bool check_validation_layer_support();
-        std::vector<const char*> get_required_extensions();
         void run(liboceanlight::window&);
     };
 }
