@@ -48,7 +48,6 @@ namespace liboceanlight
 
     class engine
     {
-        VkInstance vulkan_instance {nullptr};
         const bool validation_layers_enable {true};
         VkDebugUtilsMessengerEXT debug_utils_messenger;
 

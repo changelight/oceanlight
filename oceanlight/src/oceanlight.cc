@@ -22,7 +22,6 @@ int main(int argc, char** argv)
         liboceanlight::window window;
         engine.instantiate();
         engine.run(window);
-        engine.cleanup();
     }
 
     catch (const std::exception& e)
