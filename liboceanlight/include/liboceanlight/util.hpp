@@ -37,7 +37,7 @@ void DestroyDebugUtilsMessengerEXT(
     VkDebugUtilsMessengerEXT,
     const VkAllocationCallbacks*);
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
+VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT,
     VkDebugUtilsMessageTypeFlagsEXT,
     const VkDebugUtilsMessengerCallbackDataEXT*,

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <optional>
 #include <liboceanlight/util.hpp>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -46,6 +47,11 @@ namespace liboceanlight
         }
     };
 
+    struct queue_family_indices_struct
+    {
+        std::optional<uint32_t> graphics_family;
+    };
+
     class engine
     {
         const bool validation_layers_enable {true};
@@ -76,7 +82,11 @@ namespace liboceanlight
             glfwTerminate();
         }
 
-        void instantiate();
+        void init();
+        VkPhysicalDevice pick_physical_device();
+        uint32_t rate_device_suitability(VkPhysicalDevice);
+        bool check_device_queue_family_support(VkPhysicalDevice);
+        liboceanlight::queue_family_indices_struct find_queue_families(VkPhysicalDevice);
         void run(liboceanlight::window&);
     };
 }
