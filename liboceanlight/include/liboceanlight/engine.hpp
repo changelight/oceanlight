@@ -9,8 +9,21 @@
 #include <GLFW/glfw3.h>
 #include <config.h>
 
+VkApplicationInfo populate_instance_app_info(void);
+VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo*);
+std::vector<const char*> get_required_instance_extensions(void);
+
+void enable_vldn_layers(
+    VkInstanceCreateInfo&,
+    std::vector<const char*>&);
+    
+void enable_dbg_utils_msngr(
+    std::vector<const char*>&,
+    VkDebugUtilsMessengerCreateInfoEXT&,
+    VkInstanceCreateInfo&);
+
 void error_callback(int, const char*);
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void key_callback(GLFWwindow*, int, int, int, int);
 
 namespace liboceanlight
 {
@@ -54,11 +67,12 @@ namespace liboceanlight
 
     class engine
     {
-        const bool validation_layers_enable {true};
+        const bool validation_layers_enabled {true};
         VkDebugUtilsMessengerEXT debug_utils_messenger;
 
     public:
         VkInstance vulkan_instance {nullptr};
+        VkDevice logical_device {nullptr};
 
         engine()
         {
@@ -75,7 +89,10 @@ namespace liboceanlight
         {
             if (debug_utils_messenger)
             {
-                DestroyDebugUtilsMessengerEXT(vulkan_instance, debug_utils_messenger, nullptr);
+                DestroyDebugUtilsMessengerEXT(
+                    vulkan_instance,
+                    debug_utils_messenger,
+                    nullptr);
             }
 
             vkDestroyInstance(vulkan_instance, nullptr);
@@ -87,6 +104,7 @@ namespace liboceanlight
         uint32_t rate_device_suitability(VkPhysicalDevice);
         bool check_device_queue_family_support(VkPhysicalDevice);
         liboceanlight::queue_family_indices_struct find_queue_families(VkPhysicalDevice);
+        VkDevice create_logical_device();
         void run(liboceanlight::window&);
     };
 }
