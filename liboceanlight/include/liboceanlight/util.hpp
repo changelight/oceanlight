@@ -8,23 +8,13 @@
 
 namespace liboceanlight
 {
-    /* Avoid using this in hotpaths for now since I don't know if the
-    parameter unpacking is done via single-stepforwarding or recursion.
-    If it is recursion, it will be slower. Also because we flush the stream. */
-    template <typename... Args>
-    std::ostream& generic_print(std::ostream& out, Args&&... args)
-    {
-        ((out << args << "\n"), ...) << std::endl;
-        return out;
-    }
-
     std::string version_string(void);
 }
 
-bool check_validation_layer_support(const std::vector<const char*>&);
+bool check_vldn_layer_support(const std::vector<const char*>&);
 VkApplicationInfo populate_vulkan_application_info();
 VkInstanceCreateInfo populate_vulkan_create_info(VkApplicationInfo*);
-VkDebugUtilsMessengerCreateInfoEXT populate_debug_utils_messenger_create_info();
+VkDebugUtilsMessengerCreateInfoEXT populate_dbg_utils_msngr_create_info();
 
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance,
