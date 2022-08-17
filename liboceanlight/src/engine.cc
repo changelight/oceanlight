@@ -44,30 +44,26 @@ void liboceanlight::engine::init()
         &extension_count,
         vulkan_extensions.data());
 
-    VkResult result = vkCreateInstance(
+    VkResult rv;
+    rv = vkCreateInstance(
         &instance_create_info,
         nullptr,
         &vulkan_instance);
 
-    VkResult result = vkCreateInstance(
-        &instance_create_info,
-        nullptr,
-        &vulkan_instance);
-
-    if (result != VK_SUCCESS)
+    if (rv != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create Vulkan instance.");
     }
 
     if (validation_layers_enabled)
     {
-        result = CreateDebugUtilsMessengerEXT(
+        rv = CreateDebugUtilsMessengerEXT(
             vulkan_instance,
             &dbg_utils_msngr_create_info,
             nullptr,
             &debug_utils_messenger);
 
-        if (result != VK_SUCCESS)
+        if (rv != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to set up debug messenger.");
         }
@@ -358,32 +354,6 @@ VkApplicationInfo populate_instance_app_info()
     return app_info;
 }
 
-void enable_dbg_utils_msngr(
-    std::vector<const char*>& extensions,
-    VkDebugUtilsMessengerCreateInfoEXT& dbg_utils_msngr_create_info,
-    VkInstanceCreateInfo& instance_create_info)
-{
-    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    dbg_utils_msngr_create_info = populate_dbg_utils_msngr_create_info();
-    instance_create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&dbg_utils_msngr_create_info;
-}
-
-void enable_vldn_layers(
-    VkInstanceCreateInfo& c_info,
-    std::vector<const char*>& vldn_layers)
-{
-    c_info.enabledLayerCount = static_cast<uint32_t>(vldn_layers.size());
-    c_info.ppEnabledLayerNames = vldn_layers.data();
-}
-
-std::vector<const char*> get_required_instance_extensions()
-{
-    uint32_t count {0};
-    const char** extensions = glfwGetRequiredInstanceExtensions(&count);
-    std::vector<const char*> extensions_vec(extensions, extensions + count);
-    return extensions_vec;
-}
-
 VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
 {
     VkInstanceCreateInfo create_info {};
@@ -391,18 +361,4 @@ VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
     create_info.pApplicationInfo = app_info;
     create_info.pNext = nullptr;
     return create_info;
-}
-
-VkApplicationInfo populate_instance_app_info()
-{
-    VkApplicationInfo app_info {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = PROJECT_NAME;
-    app_info.applicationVersion = VK_MAKE_VERSION(
-        PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
-    app_info.pEngineName = PROJECT_NAME;
-    app_info.engineVersion = VK_MAKE_VERSION(
-        PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
-    app_info.apiVersion = VK_API_VERSION_1_3;
-    return app_info;
 }
