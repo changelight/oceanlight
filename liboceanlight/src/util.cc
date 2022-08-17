@@ -10,37 +10,6 @@ std::string liboceanlight::version_string()
     return PROJECT_NAME " Ver. " PROJECT_VER;
 }
 
-bool check_vldn_layer_support(const std::vector<const char*>& validation_layers)
-{
-    uint32_t count {0};
-    vkEnumerateInstanceLayerProperties(&count, nullptr);
-
-    std::vector<VkLayerProperties> layer_properties(count);
-    vkEnumerateInstanceLayerProperties(&count, layer_properties.data());
-
-    bool layer_found;
-    for (const char* layer : validation_layers)
-    {
-        layer_found = false;
-
-        for (const auto& i : layer_properties)
-        {
-            if (strcmp(layer, i.layerName) == 0)
-            {
-                layer_found = true;
-                std::cout << "Found Validation Layer: \n" << layer << "\n";
-            }
-        }
-
-        if (!layer_found)
-        {
-            std::cerr << "LAYER NOT FOUND: " << layer << "\n";
-            throw std::runtime_error("Did not find validation layer.");
-        }
-    }
-    return true;
-}
-
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     VkDebugUtilsMessageTypeFlagsEXT type,

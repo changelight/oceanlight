@@ -9,18 +9,38 @@
 #include <GLFW/glfw3.h>
 #include <config.h>
 
+struct queue_family_indices_struct
+{
+    std::optional<uint32_t> graphics_family;
+};
+
 VkApplicationInfo populate_instance_app_info(void);
-VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo*);
+VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo&);
 std::vector<const char*> get_required_instance_extensions(void);
+
+bool check_vldn_layer_support(
+    const std::vector<const char*>& validation_layers);
 
 void enable_vldn_layers(
     VkInstanceCreateInfo&,
     std::vector<const char*>&);
-    
+
 void enable_dbg_utils_msngr(
     std::vector<const char*>&,
     VkDebugUtilsMessengerCreateInfoEXT&,
     VkInstanceCreateInfo&);
+
+VkPhysicalDevice pick_physical_device(
+    VkInstance&,
+    queue_family_indices_struct&);
+
+bool check_device_queue_family_support(
+    VkPhysicalDevice&,
+    queue_family_indices_struct&);
+
+void find_queue_families(VkPhysicalDevice&, queue_family_indices_struct&);
+uint32_t rate_device_suitability(const VkPhysicalDevice&);
+VkDevice create_logical_device(VkPhysicalDevice&, queue_family_indices_struct&);
 
 void error_callback(int, const char*);
 void key_callback(GLFWwindow*, int, int, int, int);
@@ -60,11 +80,6 @@ namespace liboceanlight
         }
     };
 
-    struct queue_family_indices_struct
-    {
-        std::optional<uint32_t> graphics_family;
-    };
-
     class engine
     {
         const bool validation_layers_enabled {true};
@@ -95,6 +110,7 @@ namespace liboceanlight
                     nullptr);
             }
 
+            vkDestroyDevice(logical_device, nullptr);
             vkDestroyInstance(vulkan_instance, nullptr);
             glfwTerminate();
         }
@@ -103,7 +119,7 @@ namespace liboceanlight
         VkPhysicalDevice pick_physical_device();
         uint32_t rate_device_suitability(VkPhysicalDevice);
         bool check_device_queue_family_support(VkPhysicalDevice);
-        liboceanlight::queue_family_indices_struct find_queue_families(VkPhysicalDevice);
+        queue_family_indices_struct find_queue_families(VkPhysicalDevice);
         VkDevice create_logical_device();
         void run(liboceanlight::window&);
     };
