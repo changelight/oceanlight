@@ -116,6 +116,11 @@ namespace liboceanlight
         }
 
         void init();
+        VkPhysicalDevice pick_physical_device();
+        uint32_t rate_device_suitability(VkPhysicalDevice);
+        bool check_device_queue_family_support(VkPhysicalDevice);
+        queue_family_indices_struct find_queue_families(VkPhysicalDevice);
+        VkDevice create_logical_device();
         void run(liboceanlight::window&);
     };
 }
