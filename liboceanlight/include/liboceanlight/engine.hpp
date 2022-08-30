@@ -60,7 +60,13 @@ namespace liboceanlight
             glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-            window_pointer = glfwCreateWindow(width, height, window_name.c_str(), nullptr, nullptr);
+            window_pointer = glfwCreateWindow(
+                width,
+                height,
+                window_name.c_str(),
+                nullptr,
+                nullptr);
+                
             if (window_pointer == NULL)
             {
                 throw std::runtime_error("Could not create window");
@@ -83,11 +89,12 @@ namespace liboceanlight
     class engine
     {
         const bool validation_layers_enabled {true};
-        VkDebugUtilsMessengerEXT debug_utils_messenger;
+        VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 
     public:
         VkInstance vulkan_instance {nullptr};
         VkDevice logical_device {nullptr};
+        VkQueue graphics_queue {nullptr};
 
         engine()
         {

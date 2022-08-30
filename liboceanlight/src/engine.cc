@@ -84,6 +84,13 @@ void liboceanlight::engine::init()
     }
 
     logical_device = create_logical_device(physical_device, indices);
+
+    vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
+
+    if (!graphics_queue)
+    {
+        throw std::runtime_error("Could not get device queue handle.");
+    }
 }
 
 void liboceanlight::engine::run(liboceanlight::window& window)
