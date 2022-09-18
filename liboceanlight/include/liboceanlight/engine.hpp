@@ -9,41 +9,13 @@
 #include <GLFW/glfw3.h>
 #include <config.h>
 
+void error_callback(int, const char*);
+void key_callback(GLFWwindow*, int, int, int, int);
+
 struct queue_family_indices_struct
 {
     std::optional<uint32_t> graphics_family;
 };
-
-VkApplicationInfo populate_instance_app_info(void);
-VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo&);
-std::vector<const char*> get_required_instance_extensions(void);
-
-bool check_vldn_layer_support(
-    const std::vector<const char*>& validation_layers);
-
-void enable_vldn_layers(
-    VkInstanceCreateInfo&,
-    std::vector<const char*>&);
-
-void enable_dbg_utils_msngr(
-    std::vector<const char*>&,
-    VkDebugUtilsMessengerCreateInfoEXT&,
-    VkInstanceCreateInfo&);
-
-VkPhysicalDevice pick_physical_device(
-    VkInstance&,
-    queue_family_indices_struct&);
-
-bool check_device_queue_family_support(
-    VkPhysicalDevice&,
-    queue_family_indices_struct&);
-
-void find_queue_families(VkPhysicalDevice&, queue_family_indices_struct&);
-uint32_t rate_device_suitability(const VkPhysicalDevice&);
-VkDevice create_logical_device(VkPhysicalDevice&, queue_family_indices_struct&);
-
-void error_callback(int, const char*);
-void key_callback(GLFWwindow*, int, int, int, int);
 
 namespace liboceanlight
 {
@@ -51,9 +23,9 @@ namespace liboceanlight
     {
         int width {640}, height {480};
         const std::string window_name {"Oceanlight"};
-        GLFWwindow* window_pointer {nullptr};
 
     public:
+        GLFWwindow* window_pointer {nullptr};
         window()
         {
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -66,7 +38,7 @@ namespace liboceanlight
                 window_name.c_str(),
                 nullptr,
                 nullptr);
-                
+
             if (window_pointer == NULL)
             {
                 throw std::runtime_error("Could not create window");
@@ -88,14 +60,14 @@ namespace liboceanlight
 
     class engine
     {
-        const bool validation_layers_enabled {true};
-        VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
-
-    public:
         VkInstance vulkan_instance {nullptr};
         VkDevice logical_device {nullptr};
         VkQueue graphics_queue {nullptr};
+        VkSurfaceKHR window_surface {nullptr};
+        const bool validation_layers_enabled {true};
+        VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 
+        public:
         engine()
         {
             glfwSetErrorCallback(error_callback);
@@ -109,6 +81,11 @@ namespace liboceanlight
 
         ~engine()
         {
+            if (window_surface)
+            {
+                vkDestroySurfaceKHR(vulkan_instance, window_surface, nullptr);
+            }
+
             if (debug_utils_messenger)
             {
                 DestroyDebugUtilsMessengerEXT(
@@ -122,8 +99,48 @@ namespace liboceanlight
             glfwTerminate();
         }
 
-        void init();
+        void init(liboceanlight::window&);
+        VkInstance create_vulkan_instance();
         void run(liboceanlight::window&);
     };
 }
+
+VkPhysicalDevice pick_physical_device(
+    VkInstance&,
+    queue_family_indices_struct&);
+
+VkDevice create_logical_device(
+    VkPhysicalDevice&,
+    queue_family_indices_struct&);
+
+bool check_vldn_layer_support(
+    const std::vector<const char*>& validation_layers);
+
+void enable_vldn_layers(
+    VkInstanceCreateInfo&,
+    std::vector<const char*>&);
+
+void enable_dbg_utils_msngr(
+    std::vector<const char*>&,
+    VkDebugUtilsMessengerCreateInfoEXT&,
+    VkInstanceCreateInfo&);
+
+void check_device_queue_family_support(
+    VkPhysicalDevice&,
+    queue_family_indices_struct&);
+
+void find_queue_families(VkPhysicalDevice&, queue_family_indices_struct&);
+uint32_t rate_device_suitability(const VkPhysicalDevice&);
+
+VkApplicationInfo populate_instance_app_info(void);
+VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo&);
+
+VkDeviceQueueCreateInfo populate_queue_create_info(
+    queue_family_indices_struct&);
+
+VkDeviceCreateInfo populate_device_create_info(
+    VkPhysicalDeviceFeatures&,
+    VkDeviceQueueCreateInfo&);
+
+std::vector<const char*> get_required_instance_extensions(void);
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */

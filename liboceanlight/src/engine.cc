@@ -8,7 +8,44 @@
 #include <liboceanlight/util.hpp>
 #include <config.h>
 
-void liboceanlight::engine::init()
+void liboceanlight::engine::run(liboceanlight::window& window)
+{
+    while (!window.should_close())
+    {
+        //glfwSwapBuffers(window);
+        glfwWaitEvents();
+    }
+}
+
+void liboceanlight::engine::init(liboceanlight::window& window)
+{
+    vulkan_instance = create_vulkan_instance();
+
+    queue_family_indices_struct indices;
+    VkPhysicalDevice physical_device {nullptr};
+    physical_device = pick_physical_device(vulkan_instance, indices);
+    logical_device = create_logical_device(physical_device, indices);
+
+    vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
+
+    if (!graphics_queue)
+    {
+        throw std::runtime_error("Could not get device queue handle.");
+    }
+
+    VkResult rv = glfwCreateWindowSurface(
+        vulkan_instance,
+        window.window_pointer,
+        nullptr,
+        &window_surface);
+
+    if (rv != VK_SUCCESS)
+    {
+        throw std::runtime_error("Could not create window surface.");
+    }
+}
+
+VkInstance liboceanlight::engine::create_vulkan_instance()
 {
     VkApplicationInfo instance_app_info;
     instance_app_info = populate_instance_app_info();
@@ -44,13 +81,13 @@ void liboceanlight::engine::init()
         &extension_count,
         vulkan_extensions.data());
 
-    VkResult rv;
-    rv = vkCreateInstance(
+    VkInstance instance {nullptr};
+    VkResult rv = vkCreateInstance(
         &instance_create_info,
         nullptr,
-        &vulkan_instance);
+        &instance);
 
-    if (rv != VK_SUCCESS)
+    if (rv != VK_SUCCESS || !instance)
     {
         throw std::runtime_error("Failed to create Vulkan instance.");
     }
@@ -58,7 +95,7 @@ void liboceanlight::engine::init()
     if (validation_layers_enabled)
     {
         rv = CreateDebugUtilsMessengerEXT(
-            vulkan_instance,
+            instance,
             &dbg_utils_msngr_create_info,
             nullptr,
             &debug_utils_messenger);
@@ -69,80 +106,53 @@ void liboceanlight::engine::init()
         }
     }
 
-    queue_family_indices_struct indices;
-    VkPhysicalDevice physical_device {nullptr};
-    physical_device = pick_physical_device(vulkan_instance, indices);
-
-    if (!physical_device)
-    {
-        throw std::runtime_error("Invalid physical device");
-    }
-
-    if (!check_device_queue_family_support(physical_device, indices))
-    {
-        throw std::runtime_error("Device lacks required queue family.");
-    }
-
-    logical_device = create_logical_device(physical_device, indices);
-
-    vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
-
-    if (!graphics_queue)
-    {
-        throw std::runtime_error("Could not get device queue handle.");
-    }
+    return instance;
 }
 
-void liboceanlight::engine::run(liboceanlight::window& window)
-{
-    while (!window.should_close())
-    {
-        //glfwSwapBuffers(window);
-        glfwWaitEvents();
-    }
-}
-
-void key_callback(GLFWwindow* window,
-    int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    }
-
-    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, GL_TRUE);
-    }
-}
-
-void error_callback(int code, const char* description)
-{
-    std::cerr << "Error " << code << ": " << description << "\n";
-}
-
-VkDeviceQueueCreateInfo populate_queue_create_info(
+VkPhysicalDevice pick_physical_device(
+    VkInstance& instance,
     queue_family_indices_struct& indices)
 {
-    VkDeviceQueueCreateInfo create_info {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    create_info.queueFamilyIndex = indices.graphics_family.value();
-    create_info.queueCount = 1;
-    float queue_priority = 1.0f;
-    create_info.pQueuePriorities = &queue_priority;
-    return create_info;
-}
+    uint32_t device_count {0};
+    VkPhysicalDevice physical_device {VK_NULL_HANDLE};
+    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
-VkDeviceCreateInfo populate_device_create_info(
-    VkPhysicalDeviceFeatures& features,
-    VkDeviceQueueCreateInfo& queue_create_info)
-{
-    VkDeviceCreateInfo create_info {};
-    create_info.pQueueCreateInfos = &queue_create_info;
-    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.queueCreateInfoCount = 1;
-    create_info.pEnabledFeatures = &features;
-    return create_info;
+    if (device_count == 0)
+    {
+        throw std::runtime_error("Failed to find supported device");
+    }
+
+    std::vector<VkPhysicalDevice> physical_devices(device_count);
+    vkEnumeratePhysicalDevices(
+        instance,
+        &device_count,
+        physical_devices.data());
+
+    std::multimap<uint32_t, VkPhysicalDevice> device_candidates;
+    for (const auto& device : physical_devices)
+    {
+        uint32_t score = rate_device_suitability(device);
+        device_candidates.insert(std::make_pair(score, device));
+
+        /* Multimap is sorted, so rbegin()->first contains highest score */
+        if (device_candidates.rbegin()->first > 0)
+        {
+            physical_device = device_candidates.rbegin()->second;
+        }
+        else
+        {
+            throw std::runtime_error("Failed to find suitable device.");
+        }
+    }
+
+    if (physical_device == VK_NULL_HANDLE)
+    {
+        throw std::runtime_error("Found devices, but none suitable.");
+    }
+
+    check_device_queue_family_support(physical_device, indices);
+
+    return physical_device;
 }
 
 VkDevice create_logical_device(
@@ -229,56 +239,15 @@ void find_queue_families(
     }
 }
 
-bool check_device_queue_family_support(
+void check_device_queue_family_support(
     VkPhysicalDevice& device,
     queue_family_indices_struct& indices)
 {
     find_queue_families(device, indices);
-    return indices.graphics_family.has_value();
-}
-
-VkPhysicalDevice pick_physical_device(
-    VkInstance& instance,
-    queue_family_indices_struct& indices)
-{
-    uint32_t device_count {0};
-    VkPhysicalDevice physical_device {VK_NULL_HANDLE};
-    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
-
-    if (device_count == 0)
+    if (indices.graphics_family.has_value() == false)
     {
-        throw std::runtime_error("Failed to find supported device");
+        throw std::runtime_error("Device lacks required queue family.");
     }
-
-    std::vector<VkPhysicalDevice> physical_devices(device_count);
-    vkEnumeratePhysicalDevices(
-        instance,
-        &device_count,
-        physical_devices.data());
-
-    std::multimap<uint32_t, VkPhysicalDevice> device_candidates;
-    for (const auto& device : physical_devices)
-    {
-        uint32_t score = rate_device_suitability(device);
-        device_candidates.insert(std::make_pair(score, device));
-
-        /* Multimap is sorted, so rbegin()->first contains highest score */
-        if (device_candidates.rbegin()->first > 0)
-        {
-            physical_device = device_candidates.rbegin()->second;
-        }
-        else
-        {
-            throw std::runtime_error("Failed to find suitable device.");
-        }
-    }
-
-    if (physical_device == VK_NULL_HANDLE)
-    {
-        throw std::runtime_error("Found devices, but none suitable.");
-    }
-
-    return physical_device;
 }
 
 void enable_dbg_utils_msngr(
@@ -368,4 +337,47 @@ VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
     create_info.pApplicationInfo = app_info;
     create_info.pNext = nullptr;
     return create_info;
+}
+
+VkDeviceQueueCreateInfo populate_queue_create_info(
+    queue_family_indices_struct& indices)
+{
+    VkDeviceQueueCreateInfo create_info {};
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    create_info.queueFamilyIndex = indices.graphics_family.value();
+    create_info.queueCount = 1;
+    float queue_priority = 1.0f;
+    create_info.pQueuePriorities = &queue_priority;
+    return create_info;
+}
+
+VkDeviceCreateInfo populate_device_create_info(
+    VkPhysicalDeviceFeatures& features,
+    VkDeviceQueueCreateInfo& queue_create_info)
+{
+    VkDeviceCreateInfo create_info {};
+    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    create_info.queueCreateInfoCount = 1;
+    create_info.pEnabledFeatures = &features;
+    return create_info;
+}
+
+void key_callback(GLFWwindow* window,
+    int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(window, GL_TRUE);
+    }
+
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS)
+    {
+        glfwSetWindowShouldClose(window, GL_TRUE);
+    }
+}
+
+void error_callback(int code, const char* description)
+{
+    std::cerr << "Error " << code << ": " << description << "\n";
 }
