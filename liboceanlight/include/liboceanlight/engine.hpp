@@ -15,6 +15,12 @@ void key_callback(GLFWwindow*, int, int, int, int);
 struct queue_family_indices_struct
 {
     std::optional<uint32_t> graphics_family;
+    std::optional<uint32_t> presentation_family;
+
+    bool is_complete()
+    {
+        return graphics_family.has_value() && presentation_family.has_value();
+    }
 };
 
 namespace liboceanlight
@@ -67,7 +73,7 @@ namespace liboceanlight
         const bool validation_layers_enabled {true};
         VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 
-        public:
+    public:
         engine()
         {
             glfwSetErrorCallback(error_callback);
@@ -109,6 +115,8 @@ VkPhysicalDevice pick_physical_device(
     VkInstance&,
     queue_family_indices_struct&);
 
+VkSurfaceKHR create_window_surface(liboceanlight::window&, VkInstance&);
+
 VkDevice create_logical_device(
     VkPhysicalDevice&,
     queue_family_indices_struct&);
@@ -125,11 +133,13 @@ void enable_dbg_utils_msngr(
     VkDebugUtilsMessengerCreateInfoEXT&,
     VkInstanceCreateInfo&);
 
-void check_device_queue_family_support(
-    VkPhysicalDevice&,
-    queue_family_indices_struct&);
+bool device_is_suitable(queue_family_indices_struct&);
 
-void find_queue_families(VkPhysicalDevice&, queue_family_indices_struct&);
+void find_queue_families(
+    VkPhysicalDevice&,
+    queue_family_indices_struct&,
+    VkSurfaceKHR&);
+
 uint32_t rate_device_suitability(const VkPhysicalDevice&);
 
 VkApplicationInfo populate_instance_app_info(void);

@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <cstring>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/engine.hpp>
@@ -20,10 +21,18 @@ void liboceanlight::engine::run(liboceanlight::window& window)
 void liboceanlight::engine::init(liboceanlight::window& window)
 {
     vulkan_instance = create_vulkan_instance();
+    window_surface = create_window_surface(window, vulkan_instance);
 
     queue_family_indices_struct indices;
     VkPhysicalDevice physical_device {nullptr};
     physical_device = pick_physical_device(vulkan_instance, indices);
+    find_queue_families(physical_device, indices, window_surface);
+
+    if(!device_is_suitable(indices))
+    {
+        throw std::runtime_error("Device lacks required queue family.");
+    }
+
     logical_device = create_logical_device(physical_device, indices);
 
     vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
@@ -32,17 +41,23 @@ void liboceanlight::engine::init(liboceanlight::window& window)
     {
         throw std::runtime_error("Could not get device queue handle.");
     }
+}
 
+VkSurfaceKHR create_window_surface(liboceanlight::window& window, VkInstance& instance)
+{
+    VkSurfaceKHR surface {nullptr};
     VkResult rv = glfwCreateWindowSurface(
-        vulkan_instance,
+        instance,
         window.window_pointer,
         nullptr,
-        &window_surface);
+        &surface);
 
     if (rv != VK_SUCCESS)
     {
         throw std::runtime_error("Could not create window surface.");
     }
+
+    return surface;
 }
 
 VkInstance liboceanlight::engine::create_vulkan_instance()
@@ -150,8 +165,6 @@ VkPhysicalDevice pick_physical_device(
         throw std::runtime_error("Found devices, but none suitable.");
     }
 
-    check_device_queue_family_support(physical_device, indices);
-
     return physical_device;
 }
 
@@ -212,8 +225,10 @@ uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
 
 void find_queue_families(
     VkPhysicalDevice& device,
-    queue_family_indices_struct& indices)
+    queue_family_indices_struct& indices,
+    VkSurfaceKHR& surface)
 {
+    VkBool32 present_support {false};
     uint32_t queue_family_count {0};
     vkGetPhysicalDeviceQueueFamilyProperties(
         device,
@@ -226,28 +241,35 @@ void find_queue_families(
         &queue_family_count,
         queue_families.data());
 
+    VkResult rv;
     int i {0};
     for (const auto& queue_family : queue_families)
     {
         if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             indices.graphics_family = i;
-            break;
+        }
+
+        rv = vkGetPhysicalDeviceSurfaceSupportKHR(
+            device,
+            i,
+            surface,
+            &present_support);
+
+        std::cout << rv << "\n";
+
+        if (present_support)
+        {
+            indices.presentation_family = i;
         }
 
         ++i;
     }
 }
 
-void check_device_queue_family_support(
-    VkPhysicalDevice& device,
-    queue_family_indices_struct& indices)
+bool device_is_suitable(queue_family_indices_struct& indices)
 {
-    find_queue_families(device, indices);
-    if (indices.graphics_family.has_value() == false)
-    {
-        throw std::runtime_error("Device lacks required queue family.");
-    }
+    return indices.graphics_family.has_value() && indices.presentation_family.has_value();
 }
 
 void enable_dbg_utils_msngr(
