@@ -24,3 +24,6 @@ Sessionx.vim
 tags
 # Persistent undo
 [._]*.un~
+
+#clangd cache folder
+.cache
