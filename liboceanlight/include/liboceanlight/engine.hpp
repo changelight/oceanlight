@@ -69,6 +69,7 @@ namespace liboceanlight
         VkInstance vulkan_instance {nullptr};
         VkDevice logical_device {nullptr};
         VkQueue graphics_queue {nullptr};
+        VkQueue present_queue {nullptr};
         VkSurfaceKHR window_surface {nullptr};
         const bool validation_layers_enabled {true};
         VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
@@ -146,11 +147,11 @@ VkApplicationInfo populate_instance_app_info(void);
 VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo&);
 
 VkDeviceQueueCreateInfo populate_queue_create_info(
-    queue_family_indices_struct&);
+    uint32_t&);
 
 VkDeviceCreateInfo populate_device_create_info(
     VkPhysicalDeviceFeatures&,
-    VkDeviceQueueCreateInfo&);
+    std::vector<VkDeviceQueueCreateInfo>&);
 
 std::vector<const char*> get_required_instance_extensions(void);
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */
