@@ -2,7 +2,7 @@
 #include <vector>
 #include <map>
 #include <optional>
-#include <cstring>
+#include <set>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/engine.hpp>
@@ -28,18 +28,24 @@ void liboceanlight::engine::init(liboceanlight::window& window)
     physical_device = pick_physical_device(vulkan_instance, indices);
     find_queue_families(physical_device, indices, window_surface);
 
-    if(!device_is_suitable(indices))
+    if (!device_is_suitable(indices))
     {
         throw std::runtime_error("Device lacks required queue family.");
     }
 
     logical_device = create_logical_device(physical_device, indices);
-
     vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
 
     if (!graphics_queue)
     {
         throw std::runtime_error("Could not get device queue handle.");
+    }
+
+    vkGetDeviceQueue(logical_device, indices.presentation_family.value(), 0, &present_queue);
+
+    if (!present_queue)
+    {
+        throw std::runtime_error("Could not get presentation queue handle.");
     }
 }
 
@@ -174,14 +180,21 @@ VkDevice create_logical_device(
 {
     VkDevice logical_device {nullptr};
 
-    VkDeviceQueueCreateInfo queue_create_info {};
-    queue_create_info = populate_queue_create_info(indices);
+    //VkDeviceQueueCreateInfo queue_create_info {};
+    //queue_create_info = populate_queue_create_info(indices);
+
+    std::set<uint32_t> unique_queue_families {indices.graphics_family.value(), indices.presentation_family.value()};
+    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    for (uint32_t queue_family : unique_queue_families)
+    {
+        queue_create_infos.push_back(populate_queue_create_info(queue_family));
+    }
 
     VkPhysicalDeviceFeatures features {};
     VkDeviceCreateInfo device_create_info;
     device_create_info = populate_device_create_info(
         features,
-        queue_create_info);
+        queue_create_infos);
 
     VkResult rv;
     rv = vkCreateDevice(
@@ -362,11 +375,11 @@ VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
 }
 
 VkDeviceQueueCreateInfo populate_queue_create_info(
-    queue_family_indices_struct& indices)
+    uint32_t& queue_family)
 {
     VkDeviceQueueCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    create_info.queueFamilyIndex = indices.graphics_family.value();
+    create_info.queueFamilyIndex = queue_family;
     create_info.queueCount = 1;
     float queue_priority = 1.0f;
     create_info.pQueuePriorities = &queue_priority;
@@ -375,12 +388,12 @@ VkDeviceQueueCreateInfo populate_queue_create_info(
 
 VkDeviceCreateInfo populate_device_create_info(
     VkPhysicalDeviceFeatures& features,
-    VkDeviceQueueCreateInfo& queue_create_info)
+    std::vector<VkDeviceQueueCreateInfo>& queue_create_infos)
 {
     VkDeviceCreateInfo create_info {};
-    create_info.pQueueCreateInfos = &queue_create_info;
+    create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+    create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    create_info.queueCreateInfoCount = 1;
     create_info.pEnabledFeatures = &features;
     return create_info;
 }
