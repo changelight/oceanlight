@@ -3,6 +3,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <cstring>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/engine.hpp>
@@ -13,7 +14,7 @@ void liboceanlight::engine::run(liboceanlight::window& window)
 {
     while (!window.should_close())
     {
-        //glfwSwapBuffers(window);
+        // glfwSwapBuffers(window);
         glfwWaitEvents();
     }
 }
@@ -28,20 +29,27 @@ void liboceanlight::engine::init(liboceanlight::window& window)
     physical_device = pick_physical_device(vulkan_instance, indices);
     find_queue_families(physical_device, indices, window_surface);
 
-    if (!device_is_suitable(indices))
+    if (!device_is_suitable(indices, physical_device, device_extensions))
     {
         throw std::runtime_error("Device lacks required queue family.");
     }
 
-    logical_device = create_logical_device(physical_device, indices);
-    vkGetDeviceQueue(logical_device, indices.graphics_family.value(), 0, &graphics_queue);
+    logical_device =
+        create_logical_device(physical_device, indices, device_extensions);
+    vkGetDeviceQueue(logical_device,
+                     indices.graphics_family.value(),
+                     0,
+                     &graphics_queue);
 
     if (!graphics_queue)
     {
         throw std::runtime_error("Could not get device queue handle.");
     }
 
-    vkGetDeviceQueue(logical_device, indices.presentation_family.value(), 0, &present_queue);
+    vkGetDeviceQueue(logical_device,
+                     indices.presentation_family.value(),
+                     0,
+                     &present_queue);
 
     if (!present_queue)
     {
@@ -49,14 +57,14 @@ void liboceanlight::engine::init(liboceanlight::window& window)
     }
 }
 
-VkSurfaceKHR create_window_surface(liboceanlight::window& window, VkInstance& instance)
+VkSurfaceKHR create_window_surface(liboceanlight::window& window,
+                                   VkInstance& instance)
 {
     VkSurfaceKHR surface {nullptr};
-    VkResult rv = glfwCreateWindowSurface(
-        instance,
-        window.window_pointer,
-        nullptr,
-        &surface);
+    VkResult rv = glfwCreateWindowSurface(instance,
+                                          window.window_pointer,
+                                          nullptr,
+                                          &surface);
 
     if (rv != VK_SUCCESS)
     {
@@ -81,32 +89,24 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
     if (validation_layers_enabled && check_vldn_layer_support(vldn_layers))
     {
         enable_vldn_layers(instance_create_info, vldn_layers);
-        enable_dbg_utils_msngr(
-            extensions,
-            dbg_utils_msngr_create_info,
-            instance_create_info);
+        enable_dbg_utils_msngr(extensions,
+                               dbg_utils_msngr_create_info,
+                               instance_create_info);
     }
 
     instance_create_info.enabledExtensionCount = extensions.size();
     instance_create_info.ppEnabledExtensionNames = extensions.data();
 
     uint32_t extension_count {0};
-    vkEnumerateInstanceExtensionProperties(
-        nullptr,
-        &extension_count,
-        nullptr);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 
     std::vector<VkExtensionProperties> vulkan_extensions(extension_count);
-    vkEnumerateInstanceExtensionProperties(
-        nullptr,
-        &extension_count,
-        vulkan_extensions.data());
+    vkEnumerateInstanceExtensionProperties(nullptr,
+                                           &extension_count,
+                                           vulkan_extensions.data());
 
     VkInstance instance {nullptr};
-    VkResult rv = vkCreateInstance(
-        &instance_create_info,
-        nullptr,
-        &instance);
+    VkResult rv = vkCreateInstance(&instance_create_info, nullptr, &instance);
 
     if (rv != VK_SUCCESS || !instance)
     {
@@ -115,11 +115,10 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 
     if (validation_layers_enabled)
     {
-        rv = CreateDebugUtilsMessengerEXT(
-            instance,
-            &dbg_utils_msngr_create_info,
-            nullptr,
-            &debug_utils_messenger);
+        rv = CreateDebugUtilsMessengerEXT(instance,
+                                          &dbg_utils_msngr_create_info,
+                                          nullptr,
+                                          &debug_utils_messenger);
 
         if (rv != VK_SUCCESS)
         {
@@ -130,9 +129,8 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
     return instance;
 }
 
-VkPhysicalDevice pick_physical_device(
-    VkInstance& instance,
-    queue_family_indices_struct& indices)
+VkPhysicalDevice pick_physical_device(VkInstance& instance,
+                                      queue_family_indices_struct& indices)
 {
     uint32_t device_count {0};
     VkPhysicalDevice physical_device {VK_NULL_HANDLE};
@@ -144,10 +142,9 @@ VkPhysicalDevice pick_physical_device(
     }
 
     std::vector<VkPhysicalDevice> physical_devices(device_count);
-    vkEnumeratePhysicalDevices(
-        instance,
-        &device_count,
-        physical_devices.data());
+    vkEnumeratePhysicalDevices(instance,
+                               &device_count,
+                               physical_devices.data());
 
     std::multimap<uint32_t, VkPhysicalDevice> device_candidates;
     for (const auto& device : physical_devices)
@@ -174,16 +171,16 @@ VkPhysicalDevice pick_physical_device(
     return physical_device;
 }
 
-VkDevice create_logical_device(
-    VkPhysicalDevice& physical_device,
-    queue_family_indices_struct& indices)
+VkDevice
+create_logical_device(VkPhysicalDevice& physical_device,
+                      queue_family_indices_struct& indices,
+                      const std::vector<const char*>& device_extensions)
 {
     VkDevice logical_device {nullptr};
 
-    //VkDeviceQueueCreateInfo queue_create_info {};
-    //queue_create_info = populate_queue_create_info(indices);
-
-    std::set<uint32_t> unique_queue_families {indices.graphics_family.value(), indices.presentation_family.value()};
+    std::set<uint32_t> unique_queue_families {
+        indices.graphics_family.value(),
+        indices.presentation_family.value()};
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     for (uint32_t queue_family : unique_queue_families)
     {
@@ -192,16 +189,15 @@ VkDevice create_logical_device(
 
     VkPhysicalDeviceFeatures features {};
     VkDeviceCreateInfo device_create_info;
-    device_create_info = populate_device_create_info(
-        features,
-        queue_create_infos);
+    device_create_info = populate_device_create_info(features,
+                                                     queue_create_infos,
+                                                     device_extensions);
 
     VkResult rv;
-    rv = vkCreateDevice(
-        physical_device,
-        &device_create_info,
-        nullptr,
-        &logical_device);
+    rv = vkCreateDevice(physical_device,
+                        &device_create_info,
+                        nullptr,
+                        &logical_device);
 
     if (rv != VK_SUCCESS)
     {
@@ -236,23 +232,20 @@ uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
     return score;
 }
 
-void find_queue_families(
-    VkPhysicalDevice& device,
-    queue_family_indices_struct& indices,
-    VkSurfaceKHR& surface)
+void find_queue_families(VkPhysicalDevice& device,
+                         queue_family_indices_struct& indices,
+                         VkSurfaceKHR& surface)
 {
     VkBool32 present_support {false};
     uint32_t queue_family_count {0};
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        device,
-        &queue_family_count,
-        nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(device,
+                                             &queue_family_count,
+                                             nullptr);
 
     std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        device,
-        &queue_family_count,
-        queue_families.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(device,
+                                             &queue_family_count,
+                                             queue_families.data());
 
     VkResult rv;
     int i {0};
@@ -263,13 +256,15 @@ void find_queue_families(
             indices.graphics_family = i;
         }
 
-        rv = vkGetPhysicalDeviceSurfaceSupportKHR(
-            device,
-            i,
-            surface,
-            &present_support);
+        rv = vkGetPhysicalDeviceSurfaceSupportKHR(device,
+                                                  i,
+                                                  surface,
+                                                  &present_support);
 
-        std::cout << rv << "\n";
+        if (rv != VK_SUCCESS)
+        {
+            throw std::runtime_error("Could not determine surface support");
+        }
 
         if (present_support)
         {
@@ -280,9 +275,40 @@ void find_queue_families(
     }
 }
 
-bool device_is_suitable(queue_family_indices_struct& indices)
+bool check_device_extension_support(
+    VkPhysicalDevice& device,
+    const std::vector<const char*>& device_extensions)
 {
-    return indices.graphics_family.has_value() && indices.presentation_family.has_value();
+    uint32_t extension_count;
+    vkEnumerateDeviceExtensionProperties(device,
+                                         nullptr,
+                                         &extension_count,
+                                         nullptr);
+
+    std::vector<VkExtensionProperties> extension_properties(extension_count);
+    vkEnumerateDeviceExtensionProperties(device,
+                                         nullptr,
+                                         &extension_count,
+                                         extension_properties.data());
+
+    std::set<std::string> required_extensions(device_extensions.begin(),
+                                              device_extensions.end());
+    for (const auto& extension : extension_properties)
+    {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
+}
+
+bool device_is_suitable(queue_family_indices_struct& indices,
+                        VkPhysicalDevice& device,
+                        const std::vector<const char*>& device_extensions)
+{
+    bool extensions_supported =
+        check_device_extension_support(device, device_extensions);
+    return indices.graphics_family.has_value() &&
+        indices.presentation_family.has_value() && extensions_supported;
 }
 
 void enable_dbg_utils_msngr(
@@ -292,12 +318,12 @@ void enable_dbg_utils_msngr(
 {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     dbg_utils_msngr_create_info = populate_dbg_utils_msngr_create_info();
-    instance_create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&dbg_utils_msngr_create_info;
+    instance_create_info.pNext =
+        (VkDebugUtilsMessengerCreateInfoEXT*)&dbg_utils_msngr_create_info;
 }
 
-void enable_vldn_layers(
-    VkInstanceCreateInfo& c_info,
-    std::vector<const char*>& vldn_layers)
+void enable_vldn_layers(VkInstanceCreateInfo& c_info,
+                        std::vector<const char*>& vldn_layers)
 {
     c_info.enabledLayerCount = static_cast<uint32_t>(vldn_layers.size());
     c_info.ppEnabledLayerNames = vldn_layers.data();
@@ -356,11 +382,13 @@ VkApplicationInfo populate_instance_app_info()
     VkApplicationInfo app_info {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = PROJECT_NAME;
-    app_info.applicationVersion = VK_MAKE_VERSION(
-        PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
+    app_info.applicationVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR,
+                                                  PROJECT_VER_MINOR,
+                                                  PROJECT_VER_PATCH);
     app_info.pEngineName = PROJECT_NAME;
-    app_info.engineVersion = VK_MAKE_VERSION(
-        PROJECT_VER_MAJOR, PROJECT_VER_MINOR, PROJECT_VER_PATCH);
+    app_info.engineVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR,
+                                             PROJECT_VER_MINOR,
+                                             PROJECT_VER_PATCH);
     app_info.apiVersion = VK_API_VERSION_1_3;
     return app_info;
 }
@@ -374,8 +402,7 @@ VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
     return create_info;
 }
 
-VkDeviceQueueCreateInfo populate_queue_create_info(
-    uint32_t& queue_family)
+VkDeviceQueueCreateInfo populate_queue_create_info(uint32_t& queue_family)
 {
     VkDeviceQueueCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -388,18 +415,27 @@ VkDeviceQueueCreateInfo populate_queue_create_info(
 
 VkDeviceCreateInfo populate_device_create_info(
     VkPhysicalDeviceFeatures& features,
-    std::vector<VkDeviceQueueCreateInfo>& queue_create_infos)
+    std::vector<VkDeviceQueueCreateInfo>& queue_create_infos,
+    const std::vector<const char*>& device_extensions)
 {
     VkDeviceCreateInfo create_info {};
-    create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+    create_info.queueCreateInfoCount =
+        static_cast<uint32_t>(queue_create_infos.size());
     create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_info.pEnabledFeatures = &features;
+    create_info.enabledExtensionCount =
+        static_cast<uint32_t>(device_extensions.size());
+    create_info.ppEnabledExtensionNames = device_extensions.data();
+
     return create_info;
 }
 
 void key_callback(GLFWwindow* window,
-    int key, int scancode, int action, int mods)
+                  int key,
+                  int scancode,
+                  int action,
+                  int mods)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     {

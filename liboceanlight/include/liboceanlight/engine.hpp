@@ -30,7 +30,7 @@ namespace liboceanlight
         int width {640}, height {480};
         const std::string window_name {"Oceanlight"};
 
-    public:
+        public:
         GLFWwindow* window_pointer {nullptr};
         window()
         {
@@ -38,12 +38,11 @@ namespace liboceanlight
             glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
             glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-            window_pointer = glfwCreateWindow(
-                width,
-                height,
-                window_name.c_str(),
-                nullptr,
-                nullptr);
+            window_pointer = glfwCreateWindow(width,
+                                              height,
+                                              window_name.c_str(),
+                                              nullptr,
+                                              nullptr);
 
             if (window_pointer == NULL)
             {
@@ -73,8 +72,10 @@ namespace liboceanlight
         VkSurfaceKHR window_surface {nullptr};
         const bool validation_layers_enabled {true};
         VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
+        const std::vector<const char*> device_extensions {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    public:
+        public:
         engine()
         {
             glfwSetErrorCallback(error_callback);
@@ -95,10 +96,9 @@ namespace liboceanlight
 
             if (debug_utils_messenger)
             {
-                DestroyDebugUtilsMessengerEXT(
-                    vulkan_instance,
-                    debug_utils_messenger,
-                    nullptr);
+                DestroyDebugUtilsMessengerEXT(vulkan_instance,
+                                              debug_utils_messenger,
+                                              nullptr);
             }
 
             vkDestroyDevice(logical_device, nullptr);
@@ -112,46 +112,39 @@ namespace liboceanlight
     };
 }
 
-VkPhysicalDevice pick_physical_device(
-    VkInstance&,
-    queue_family_indices_struct&);
+VkPhysicalDevice pick_physical_device(VkInstance&,
+                                      queue_family_indices_struct&);
 
 VkSurfaceKHR create_window_surface(liboceanlight::window&, VkInstance&);
-
-VkDevice create_logical_device(
-    VkPhysicalDevice&,
-    queue_family_indices_struct&);
+VkDevice create_logical_device(VkPhysicalDevice&,
+                               queue_family_indices_struct&,
+                               const std::vector<const char*>&);
 
 bool check_vldn_layer_support(
     const std::vector<const char*>& validation_layers);
 
-void enable_vldn_layers(
-    VkInstanceCreateInfo&,
-    std::vector<const char*>&);
+void enable_vldn_layers(VkInstanceCreateInfo&, std::vector<const char*>&);
+void enable_dbg_utils_msngr(std::vector<const char*>&,
+                            VkDebugUtilsMessengerCreateInfoEXT&,
+                            VkInstanceCreateInfo&);
 
-void enable_dbg_utils_msngr(
-    std::vector<const char*>&,
-    VkDebugUtilsMessengerCreateInfoEXT&,
-    VkInstanceCreateInfo&);
+bool device_is_suitable(queue_family_indices_struct&,
+                        VkPhysicalDevice&,
+                        const std::vector<const char*>&);
 
-bool device_is_suitable(queue_family_indices_struct&);
-
-void find_queue_families(
-    VkPhysicalDevice&,
-    queue_family_indices_struct&,
-    VkSurfaceKHR&);
+void find_queue_families(VkPhysicalDevice&,
+                         queue_family_indices_struct&,
+                         VkSurfaceKHR&);
 
 uint32_t rate_device_suitability(const VkPhysicalDevice&);
-
 VkApplicationInfo populate_instance_app_info(void);
 VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo&);
+VkDeviceQueueCreateInfo populate_queue_create_info(uint32_t&);
 
-VkDeviceQueueCreateInfo populate_queue_create_info(
-    uint32_t&);
-
-VkDeviceCreateInfo populate_device_create_info(
-    VkPhysicalDeviceFeatures&,
-    std::vector<VkDeviceQueueCreateInfo>&);
+VkDeviceCreateInfo
+populate_device_create_info(VkPhysicalDeviceFeatures&,
+                            std::vector<VkDeviceQueueCreateInfo>&,
+                            const std::vector<const char*>&);
 
 std::vector<const char*> get_required_instance_extensions(void);
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */
