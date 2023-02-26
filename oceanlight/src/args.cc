@@ -4,7 +4,9 @@
 #include <config.h>
 #include "args.hpp"
 
-void oceanlight::parse_args(int argc, char** argv, struct oceanlight::args& args)
+void oceanlight::parse_args(int argc,
+                            char** argv,
+                            struct oceanlight::args& args)
 {
     try
     {
@@ -26,7 +28,8 @@ void oceanlight::parse_args(int argc, char** argv, struct oceanlight::args& args
 
         if (result.count("version"))
         {
-            std::cout << PROJECT_NAME " Ver. " PROJECT_VER "\n" << liboceanlight::version_string() << std::endl;
+            std::cout << PROJECT_NAME " Ver. " PROJECT_VER "\n"
+                      << liboceanlight::version_string() << std::endl;
             args.exit_flag = true;
             return;
         }
