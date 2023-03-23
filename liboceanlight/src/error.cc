@@ -3,5 +3,5 @@
 
 void liboceanlight::print_error(int code, const char* description)
 {
-    std::cerr << "Error " << code << ": " << description << "\n";
+	std::cerr << "Error " << code << ": " << description << "\n";
 }

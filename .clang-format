@@ -6,7 +6,7 @@ AlignConsecutiveMacros: 'true'
 AlignConsecutiveAssignments: 'false'
 AlignConsecutiveDeclarations: 'false'
 AlignEscapedNewlines: Left
-AlignOperands: 'false'
+AlignOperands: 'true'
 AlignTrailingComments: 'true'
 AllowAllArgumentsOnNextLine: 'false'
 AllowAllConstructorInitializersOnNextLine: 'false'
@@ -28,7 +28,7 @@ BreakBeforeTernaryOperators: 'false'
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BreakStringLiterals: 'false'
-ColumnLimit: '80'
+ColumnLimit: '79'
 CompactNamespaces: 'false'
 ConstructorInitializerAllOnOneLineOrOnePerLine: 'false'
 ConstructorInitializerIndentWidth: '4'
@@ -42,10 +42,14 @@ IncludeBlocks: Merge
 IndentCaseLabels: 'true'
 IndentPPDirectives: BeforeHash
 IndentWidth: '4'
+TabWidth: '4'
 IndentWrappedFunctionNames: 'false'
 KeepEmptyLinesAtTheStartOfBlocks: 'false'
 Language: Cpp
 NamespaceIndentation: All
+PenaltyBreakAssignment: '100'
+PenaltyReturnTypeOnItsOwnLine: '999'
+PenaltyBreakBeforeFirstCallParameter: '0'
 PointerAlignment: Left
 ReferenceAlignment: Left
 ReflowComments: 'true'
@@ -67,6 +71,6 @@ SpacesInContainerLiterals: 'false'
 SpacesInParentheses: 'false'
 SpacesInSquareBrackets: 'false'
 Standard: Cpp11
-UseTab: Never
+UseTab: Always
 
 ...

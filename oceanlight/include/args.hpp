@@ -3,14 +3,14 @@
 #include <iostream>
 namespace oceanlight
 {
-    struct args
-    {
-        int width, height;
-        bool exit_flag;
+	struct args
+	{
+		int width, height;
+		bool exit_flag;
 
-        args() : width(640), height(480), exit_flag(false) {};
-    };
+		args() : width(640), height(480), exit_flag(false) {};
+	};
 
-    void parse_args(int, char**, struct oceanlight::args&);
+	void parse_args(int, char**, struct oceanlight::args&);
 }
 #endif /* OCEANLIGHT_ARGS_HPP_INCLUDED */
