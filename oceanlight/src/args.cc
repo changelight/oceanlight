@@ -1,12 +1,10 @@
 #include <iostream>
 #include <cxxopts.hpp>
-#include <liboceanlight/util.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
 #include <config.h>
 #include "args.hpp"
 
-void oceanlight::parse_args(int argc,
-							char** argv,
-							struct oceanlight::args& args)
+void oceanlight::args::parse(int argc, char** argv)
 {
 	try
 	{
@@ -20,7 +18,7 @@ void oceanlight::parse_args(int argc,
 		if (result.count("help"))
 		{
 			std::cout << op.help();
-			args.exit_flag = true;
+			exit_flag = true;
 			return;
 		}
 
@@ -28,15 +26,15 @@ void oceanlight::parse_args(int argc,
 		{
 			std::cout << PROJECT_NAME " Ver. " PROJECT_VER "\n"
 					  << liboceanlight::version_string() << std::endl;
-			args.exit_flag = true;
+			exit_flag = true;
 			return;
 		}
 
 		if (result.count("width"))
-			args.width = result["width"].as<int>();
+			width = result["width"].as<int>();
 
 		if (result.count("height"))
-			args.height = result["height"].as<int>();
+			height = result["height"].as<int>();
 	}
 
 	catch (std::exception& e)
@@ -50,4 +48,9 @@ void oceanlight::parse_args(int argc,
 		std::cerr << "Error: unknown error" << std::endl;
 		throw;
 	}
+}
+
+bool oceanlight::args::should_exit()
+{
+	return exit_flag;
 }

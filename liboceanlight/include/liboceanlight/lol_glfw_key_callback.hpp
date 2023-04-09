@@ -1,0 +1,5 @@
+#ifndef LIBOCEANLIGHT_GLFW_KEY_CALLBACK_HPP_INCLUDED
+#define LIBOCEANLIGHT_GLFW_KEY_CALLBACK_HPP_INCLUDED
+#include <GLFW/glfw3.h>
+void lol_glfw_key_callback(GLFWwindow*, int, int, int, int);
+#endif /* LIBOCEANLIGHT_GLFW_KEY_CALLBACK_HPP_INCLUDED */

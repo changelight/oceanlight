@@ -4,81 +4,46 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <liboceanlight/util.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_glfw_key_callback.hpp>
+#include <liboceanlight/lol_glfw_err_callback.hpp>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <config.h>
-
-void error_callback(int, const char*);
-void key_callback(GLFWwindow*, int, int, int, int);
+#include <liboceanlight/lol_window.hpp>
 
 struct queue_family_indices_struct
 {
-	std::optional<uint32_t> graphics_family;
-	std::optional<uint32_t> presentation_family;
+	std::optional<uint32_t> graphics_queue_family;
+	std::optional<uint32_t> presentation_queue_family;
 
 	bool is_complete()
 	{
-		return graphics_family.has_value() && presentation_family.has_value();
+		return graphics_queue_family.has_value() &&
+			   presentation_queue_family.has_value();
 	}
 };
 
 namespace liboceanlight
 {
-	class window
-	{
-		int width {640}, height {480};
-		const std::string window_name {"Oceanlight"};
-
-		public:
-		GLFWwindow* window_pointer {nullptr};
-		window()
-		{
-			glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-			glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-			glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-			window_pointer = glfwCreateWindow(width,
-											  height,
-											  window_name.c_str(),
-											  nullptr,
-											  nullptr);
-
-			if (window_pointer == NULL)
-			{
-				throw std::runtime_error("Could not create window");
-			}
-
-			glfwSetKeyCallback(window_pointer, key_callback);
-		}
-
-		~window()
-		{
-			glfwDestroyWindow(window_pointer);
-		}
-
-		int should_close()
-		{
-			return glfwWindowShouldClose(window_pointer);
-		}
-	};
-
 	class engine
 	{
 		VkInstance vulkan_instance {nullptr};
 		VkDevice logical_device {nullptr};
+		VkPhysicalDevice physical_device {nullptr};
 		VkQueue graphics_queue {nullptr};
 		VkQueue present_queue {nullptr};
 		VkSurfaceKHR window_surface {nullptr};
 		const bool validation_layers_enabled {true};
 		VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
+		queue_family_indices_struct indices {};
 		const std::vector<const char*> device_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 		public:
 		engine()
 		{
-			glfwSetErrorCallback(error_callback);
+			glfwSetErrorCallback(lol_glfw_error_callback);
 
 			int rv = glfwInit();
 			if (!rv)
@@ -106,16 +71,17 @@ namespace liboceanlight
 			glfwTerminate();
 		}
 
-		void init(liboceanlight::window&);
+		void init(liboceanlight::lol_window&);
 		VkInstance create_vulkan_instance();
-		void run(liboceanlight::window&);
+		void run(liboceanlight::lol_window&);
+		VkPhysicalDevice pick_physical_device();
+		void find_queue_families();
 	};
-}
+} /* namespace liboceanlight */
 
 VkPhysicalDevice pick_physical_device(VkInstance&,
 									  queue_family_indices_struct&);
 
-VkSurfaceKHR create_window_surface(liboceanlight::window&, VkInstance&);
 VkDevice create_logical_device(VkPhysicalDevice&,
 							   queue_family_indices_struct&,
 							   const std::vector<const char*>&);
@@ -131,10 +97,6 @@ void enable_dbg_utils_msngr(std::vector<const char*>&,
 bool device_is_suitable(queue_family_indices_struct&,
 						VkPhysicalDevice&,
 						const std::vector<const char*>&);
-
-void find_queue_families(VkPhysicalDevice&,
-						 queue_family_indices_struct&,
-						 VkSurfaceKHR&);
 
 uint32_t rate_device_suitability(const VkPhysicalDevice&);
 VkApplicationInfo populate_instance_app_info(void);

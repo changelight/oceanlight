@@ -1,5 +1,5 @@
-#ifndef LIBOCEANLIGHT_UTIL_HPP_INCLUDED
-#define LIBOCEANLIGHT_UTIL_HPP_INCLUDED
+#ifndef LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED
+#define LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED
 #include <iostream>
 #include <vulkan/vulkan.h>
 #include <string>
@@ -31,4 +31,4 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
 	const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
 	void* user_data);
 
-#endif /* LIBOCEANLIGHT_UTIL_HPP_INCLUDED */
+#endif /* LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED */

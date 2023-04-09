@@ -1,14 +1,9 @@
 #include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
-#include <liboceanlight/engine.hpp>
-#include <liboceanlight/util.hpp>
+#include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
 #include <config.h>
-
-std::string liboceanlight::version_string()
-{
-	return PROJECT_NAME " Ver. " PROJECT_VER;
-}
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT severity,

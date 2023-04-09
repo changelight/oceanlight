@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdint.h>
 #include <vector>
 #include <map>
 #include <optional>
@@ -6,11 +7,12 @@
 #include <cstring>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-#include <liboceanlight/engine.hpp>
-#include <liboceanlight/util.hpp>
+#include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_window.hpp>
 #include <config.h>
 
-void liboceanlight::engine::run(liboceanlight::window& window)
+void liboceanlight::engine::run(liboceanlight::lol_window& window)
 {
 	while (!window.should_close())
 	{
@@ -19,15 +21,13 @@ void liboceanlight::engine::run(liboceanlight::window& window)
 	}
 }
 
-void liboceanlight::engine::init(liboceanlight::window& window)
+void liboceanlight::engine::init(liboceanlight::lol_window& window)
 {
 	vulkan_instance = create_vulkan_instance();
-	window_surface = create_window_surface(window, vulkan_instance);
+	window_surface = window.create_window_surface(vulkan_instance);
+	physical_device = pick_physical_device();
 
-	queue_family_indices_struct indices;
-	VkPhysicalDevice physical_device {nullptr};
-	physical_device = pick_physical_device(vulkan_instance, indices);
-	find_queue_families(physical_device, indices, window_surface);
+	find_queue_families();
 
 	if (!device_is_suitable(indices, physical_device, device_extensions))
 	{
@@ -39,7 +39,7 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 										   device_extensions);
 
 	vkGetDeviceQueue(logical_device,
-					 indices.graphics_family.value(),
+					 indices.graphics_queue_family.value(),
 					 0,
 					 &graphics_queue);
 
@@ -49,7 +49,7 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 	}
 
 	vkGetDeviceQueue(logical_device,
-					 indices.presentation_family.value(),
+					 indices.presentation_queue_family.value(),
 					 0,
 					 &present_queue);
 
@@ -57,23 +57,6 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 	{
 		throw std::runtime_error("Could not get presentation queue handle.");
 	}
-}
-
-VkSurfaceKHR create_window_surface(liboceanlight::window& window,
-								   VkInstance& instance)
-{
-	VkSurfaceKHR surface {nullptr};
-	VkResult rv = glfwCreateWindowSurface(instance,
-										  window.window_pointer,
-										  nullptr,
-										  &surface);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Could not create window surface.");
-	}
-
-	return surface;
 }
 
 VkInstance liboceanlight::engine::create_vulkan_instance()
@@ -96,7 +79,7 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 							   instance_create_info);
 	}
 
-	instance_create_info.enabledExtensionCount = extensions.size();
+	instance_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	instance_create_info.ppEnabledExtensionNames = extensions.data();
 
 	uint32_t extension_count {0};
@@ -131,12 +114,11 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 	return instance;
 }
 
-VkPhysicalDevice pick_physical_device(VkInstance& instance,
-									  queue_family_indices_struct& indices)
+VkPhysicalDevice liboceanlight::engine::pick_physical_device()
 {
 	uint32_t device_count {0};
 	VkPhysicalDevice physical_device {VK_NULL_HANDLE};
-	vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+	vkEnumeratePhysicalDevices(vulkan_instance, &device_count, nullptr);
 
 	if (device_count == 0)
 	{
@@ -144,7 +126,7 @@ VkPhysicalDevice pick_physical_device(VkInstance& instance,
 	}
 
 	std::vector<VkPhysicalDevice> physical_devices(device_count);
-	vkEnumeratePhysicalDevices(instance,
+	vkEnumeratePhysicalDevices(vulkan_instance,
 							   &device_count,
 							   physical_devices.data());
 
@@ -181,8 +163,8 @@ VkDevice create_logical_device(
 	VkDevice logical_device {nullptr};
 
 	std::set<uint32_t> unique_queue_families {
-		indices.graphics_family.value(),
-		indices.presentation_family.value()};
+		indices.graphics_queue_family.value(),
+		indices.presentation_queue_family.value()};
 	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
 	for (uint32_t queue_family : unique_queue_families)
 	{
@@ -234,18 +216,16 @@ uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
 	return score;
 }
 
-void find_queue_families(VkPhysicalDevice& device,
-						 queue_family_indices_struct& indices,
-						 VkSurfaceKHR& surface)
+void liboceanlight::engine::find_queue_families()
 {
 	VkBool32 present_support {false};
 	uint32_t queue_family_count {0};
-	vkGetPhysicalDeviceQueueFamilyProperties(device,
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
 											 &queue_family_count,
 											 nullptr);
 
 	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-	vkGetPhysicalDeviceQueueFamilyProperties(device,
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
 											 &queue_family_count,
 											 queue_families.data());
 
@@ -255,12 +235,12 @@ void find_queue_families(VkPhysicalDevice& device,
 	{
 		if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 		{
-			indices.graphics_family = i;
+			indices.graphics_queue_family = i;
 		}
 
-		rv = vkGetPhysicalDeviceSurfaceSupportKHR(device,
+		rv = vkGetPhysicalDeviceSurfaceSupportKHR(physical_device,
 												  i,
-												  surface,
+												  window_surface,
 												  &present_support);
 
 		if (rv != VK_SUCCESS)
@@ -270,7 +250,7 @@ void find_queue_families(VkPhysicalDevice& device,
 
 		if (present_support)
 		{
-			indices.presentation_family = i;
+			indices.presentation_queue_family = i;
 		}
 
 		++i;
@@ -312,8 +292,9 @@ bool device_is_suitable(queue_family_indices_struct& indices,
 		device,
 		device_extensions);
 
-	return indices.graphics_family.has_value() &&
-		   indices.presentation_family.has_value() && extensions_supported;
+	return indices.graphics_queue_family.has_value() &&
+		   indices.presentation_queue_family.has_value() &&
+		   extensions_supported;
 }
 
 void enable_dbg_utils_msngr(
@@ -389,6 +370,7 @@ VkApplicationInfo populate_instance_app_info()
 	app_info.pApplicationName = PROJECT_NAME;
 	app_info.pEngineName = PROJECT_NAME;
 	app_info.apiVersion = VK_API_VERSION_1_3;
+	app_info.pNext = nullptr;
 
 	app_info.applicationVersion = VK_MAKE_VERSION(PROJECT_VER_MAJOR,
 												  PROJECT_VER_MINOR,
@@ -437,26 +419,4 @@ VkDeviceCreateInfo populate_device_create_info(
 	create_info.ppEnabledExtensionNames = device_extensions.data();
 
 	return create_info;
-}
-
-void key_callback(GLFWwindow* window,
-				  int key,
-				  int scancode,
-				  int action,
-				  int mods)
-{
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-	{
-		glfwSetWindowShouldClose(window, GL_TRUE);
-	}
-
-	if (key == GLFW_KEY_Q && action == GLFW_PRESS)
-	{
-		glfwSetWindowShouldClose(window, GL_TRUE);
-	}
-}
-
-void error_callback(int code, const char* description)
-{
-	std::cerr << "Error " << code << ": " << description << "\n";
 }
