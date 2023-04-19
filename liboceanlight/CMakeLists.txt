@@ -1,7 +1,10 @@
 project(liboceanlight VERSION 0.0.1 LANGUAGES CXX)
 configure_file(config.h.in config.h)
 include(CTest)
-add_library(liboceanlight STATIC src/lol_version.cc src/lol_engine.cc src/lol_window.cc src/lol_debug_messenger.cc src/lol_glfw_err_callback.cc src/lol_glfw_key_callback.cc)
+add_library(liboceanlight STATIC 
+            src/lol_version.cc src/lol_engine.cc src/lol_window.cc
+            src/lol_debug_messenger.cc src/lol_glfw_err_callback.cc
+            src/lol_glfw_key_callback.cc src/lol_utility.cc)
 set_target_properties(liboceanlight PROPERTIES CMAKE_CXX_VISIBILITY_PRESET hidden CMAKE_VISIBILITY_INLINES_HIDDEN yes)
 target_compile_definitions(liboceanlight PRIVATE $<$<CONFIG:Debug>:DEBUG_BUILD>)
 
@@ -28,7 +31,6 @@ FetchContent_Declare(
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/googletest
     GIT_REPOSITORY https://github.com/google/googletest
     GIT_TAG origin/main)
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 find_package(Vulkan REQUIRED)
