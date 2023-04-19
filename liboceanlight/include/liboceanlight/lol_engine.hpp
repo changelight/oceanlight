@@ -1,5 +1,6 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
+#include "vulkan/vulkan_core.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -22,6 +23,13 @@ struct queue_family_indices_struct
 		return graphics_queue_family.has_value() &&
 			   presentation_queue_family.has_value();
 	}
+};
+
+struct swap_chain_support_details
+{
+	VkSurfaceCapabilitiesKHR capabilities;
+	std::vector<VkSurfaceFormatKHR> formats;
+	std::vector<VkPresentModeKHR> present_modes;
 };
 
 namespace liboceanlight
@@ -76,6 +84,7 @@ namespace liboceanlight
 		void run(liboceanlight::lol_window&);
 		VkPhysicalDevice pick_physical_device();
 		void find_queue_families();
+		struct swap_chain_support_details get_swap_chain_support_details();
 	};
 } /* namespace liboceanlight */
 
@@ -96,6 +105,7 @@ void enable_dbg_utils_msngr(std::vector<const char*>&,
 
 bool device_is_suitable(queue_family_indices_struct&,
 						VkPhysicalDevice&,
+						VkSurfaceKHR&,
 						const std::vector<const char*>&);
 
 uint32_t rate_device_suitability(const VkPhysicalDevice&);

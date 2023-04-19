@@ -1,4 +1,8 @@
+#include "vulkan/vulkan_core.h"
 #include <iostream>
+#include <iterator>
+#include <ostream>
+#include <stdexcept>
 #include <stdint.h>
 #include <vector>
 #include <map>
@@ -10,6 +14,7 @@
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_window.hpp>
+#include <liboceanlight/lol_utility.hpp>
 #include <config.h>
 
 void liboceanlight::engine::run(liboceanlight::lol_window& window)
@@ -29,7 +34,10 @@ void liboceanlight::engine::init(liboceanlight::lol_window& window)
 
 	find_queue_families();
 
-	if (!device_is_suitable(indices, physical_device, device_extensions))
+	if (!device_is_suitable(indices,
+							physical_device,
+							window_surface,
+							device_extensions))
 	{
 		throw std::runtime_error("Device lacks required queue family.");
 	}
@@ -79,7 +87,8 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 							   instance_create_info);
 	}
 
-	instance_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+	instance_create_info.enabledExtensionCount = static_cast<uint32_t>(
+		extensions.size());
 	instance_create_info.ppEnabledExtensionNames = extensions.data();
 
 	uint32_t extension_count {0};
@@ -191,6 +200,54 @@ VkDevice create_logical_device(
 	return logical_device;
 }
 
+struct swap_chain_support_details get_swap_chain_support_details(
+	VkPhysicalDevice& device,
+	VkSurfaceKHR& surface)
+{
+	swap_chain_support_details details;
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,
+											  surface,
+											  &details.capabilities);
+
+	uint32_t format_count;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device,
+										 surface,
+										 &format_count,
+										 nullptr);
+
+	if (format_count == 0)
+	{
+		throw std::runtime_error(
+			"Could not get physical device surface formats");
+	}
+
+	details.formats.resize(format_count);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device,
+										 surface,
+										 &format_count,
+										 details.formats.data());
+
+	uint32_t present_mode_count;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device,
+											  surface,
+											  &present_mode_count,
+											  nullptr);
+
+	if (present_mode_count == 0)
+	{
+		throw std::runtime_error(
+			"Could not get physical device present modes");
+	}
+
+	details.present_modes.resize(present_mode_count);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device,
+											  surface,
+											  &present_mode_count,
+											  details.present_modes.data());
+
+	return details;
+}
+
 uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
 {
 	uint32_t score {0};
@@ -229,10 +286,16 @@ void liboceanlight::engine::find_queue_families()
 											 &queue_family_count,
 											 queue_families.data());
 
+	std::cout << "Queue families are as follows:\n";
+
 	VkResult rv;
 	int i {0};
 	for (const auto& queue_family : queue_families)
 	{
+		std::cout << "Queue Count: " << queue_family.queueCount << "\n"
+				  << "Queue Type: "
+				  << queue_flags_to_string(queue_family.queueFlags) << "\n";
+
 		if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 		{
 			indices.graphics_queue_family = i;
@@ -286,15 +349,28 @@ bool check_device_extension_support(
 
 bool device_is_suitable(queue_family_indices_struct& indices,
 						VkPhysicalDevice& device,
+						VkSurfaceKHR& window_surface,
 						const std::vector<const char*>& device_extensions)
 {
 	bool extensions_supported = check_device_extension_support(
 		device,
 		device_extensions);
 
+	bool swap_chain_adequate = false;
+
+	if (extensions_supported)
+	{
+		swap_chain_support_details details = get_swap_chain_support_details(
+			device,
+			window_surface);
+
+		swap_chain_adequate = !details.formats.empty() &&
+							  !details.present_modes.empty();
+	}
+
 	return indices.graphics_queue_family.has_value() &&
 		   indices.presentation_queue_family.has_value() &&
-		   extensions_supported;
+		   extensions_supported && swap_chain_adequate;
 }
 
 void enable_dbg_utils_msngr(
