@@ -42,7 +42,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 
 * **Red** - *Initial work* - [Red](https://github.com/redrifle)
 
-See also the list of [contributors](https://github.com/redrifle/spectacle/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/changelight/oceanlight/contributors) who participated in this project.
 
 ## License
 
