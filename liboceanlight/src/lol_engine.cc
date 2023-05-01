@@ -1,9 +1,10 @@
-#include "vulkan/vulkan_core.h"
+#include <algorithm>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <ostream>
 #include <stdexcept>
-#include <stdint.h>
+#include <cstdint>
 #include <vector>
 #include <map>
 #include <optional>
@@ -246,6 +247,63 @@ struct swap_chain_support_details get_swap_chain_support_details(
 											  details.present_modes.data());
 
 	return details;
+}
+
+VkSurfaceFormatKHR choose_swap_surface_format(
+	const std::vector<VkSurfaceFormatKHR>& available_formats)
+{
+	for (const auto& available_format : available_formats)
+	{
+		if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+			available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		{
+			return available_format;
+		}
+	}
+
+	return available_formats[0];
+}
+
+VkPresentModeKHR choose_swap_present_mode(
+	const std::vector<VkPresentModeKHR>& available_present_modes)
+{
+	for (const auto& available_present_mode : available_present_modes)
+	{
+		if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+		{
+			return available_present_mode;
+		}
+	}
+
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D liboceanlight::lol_window::choos_swap_extent(
+	const VkSurfaceCapabilitiesKHR& capabilities)
+{
+	if (capabilities.currentExtent.width !=
+		std::numeric_limits<uint32_t>::max())
+	{
+		return capabilities.currentExtent;
+	}
+	else
+	{
+		int width, height;
+		glfwGetFramebufferSize(window_pointer, &width, &height);
+
+		VkExtent2D actual_extent = {static_cast<uint32_t>(width),
+									static_cast<uint32_t>(height)};
+
+		actual_extent.width = std::clamp(actual_extent.width,
+										 capabilities.minImageExtent.width,
+										 capabilities.maxImageExtent.width);
+										 
+		actual_extent.height = std::clamp(actual_extent.height,
+										  capabilities.minImageExtent.height,
+										  capabilities.maxImageExtent.height);
+		
+		return actual_extent;
+	}
 }
 
 uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)

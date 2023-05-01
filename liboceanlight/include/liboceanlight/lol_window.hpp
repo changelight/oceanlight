@@ -18,6 +18,7 @@ namespace liboceanlight
 
 		VkSurfaceKHR create_window_surface(VkInstance&);
 		int should_close();
+		VkExtent2D choos_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	};
 }
 #endif /* LIBOCEANLIGHT_WINDOW_HPP_INCLUDED */
