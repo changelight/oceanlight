@@ -42,11 +42,16 @@ namespace liboceanlight
 		VkQueue graphics_queue {nullptr};
 		VkQueue present_queue {nullptr};
 		VkSurfaceKHR window_surface {nullptr};
-		const bool validation_layers_enabled {true};
 		VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 		queue_family_indices_struct indices {};
 		const std::vector<const char*> device_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+#ifdef NDEBUG
+		const bool validation_layers_enabled {false};
+#else
+		const bool validation_layers_enabled {true};
+#endif
 
 		public:
 		engine()
