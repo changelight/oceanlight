@@ -31,6 +31,7 @@ FetchContent_Declare(
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/googletest
     GIT_REPOSITORY https://github.com/google/googletest
     GIT_TAG origin/main)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 find_package(Vulkan REQUIRED)

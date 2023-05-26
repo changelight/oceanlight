@@ -1,4 +1,5 @@
-add_executable(error_test error_test.cc)
-target_link_libraries(error_test liboceanlight gtest_main)
+enable_testing()
+add_executable(lol_utility_test lol_utility_test.cc)
+target_link_libraries(lol_utility_test liboceanlight GTest::gtest_main)
 include(GoogleTest)
-gtest_discover_tests(error_test)
+gtest_discover_tests(lol_utility_test)

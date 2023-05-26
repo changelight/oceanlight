@@ -33,3 +33,8 @@ std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
 
 	return formatted.str() + "|";
 }
+
+int liboceanlight::test_func(int a, int b)
+{
+	return a + b;
+}

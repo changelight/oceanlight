@@ -68,15 +68,24 @@ void liboceanlight::engine::init(liboceanlight::lol_window& window)
 	}
 }
 
+/* Create the Vulkan instance */
 VkInstance liboceanlight::engine::create_vulkan_instance()
 {
+	/* Optional - VkApplicationInfo is used for game-specific optimizations by
+	 * hardware vendors (IHVs) */
 	VkApplicationInfo instance_app_info;
 	instance_app_info = populate_instance_app_info();
 
+	/* Create and populate VkInstanceCreateInfo, used by VkCreateInstance to
+	 * set basic parameters of the vulkan instance. We will fill in more as we
+	 * go until passing to VkCreateInstance */
 	VkInstanceCreateInfo instance_create_info;
 	instance_create_info = populate_instance_create_info(instance_app_info);
 
+	/* Get the instance extensions required by the windowing API */
 	std::vector<const char*> extensions = get_required_instance_extensions();
+	
+	/* Set the validation layer to be used if enabled */
 	std::vector<const char*> vldn_layers {"VK_LAYER_KHRONOS_validation"};
 
 	VkDebugUtilsMessengerCreateInfoEXT dbg_utils_msngr_create_info {};
@@ -100,6 +109,7 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 										   &extension_count,
 										   vulkan_extensions.data());
 
+	/* Create our instance */
 	VkInstance instance {nullptr};
 	VkResult rv = vkCreateInstance(&instance_create_info, nullptr, &instance);
 
@@ -278,7 +288,7 @@ VkPresentModeKHR choose_swap_present_mode(
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D liboceanlight::lol_window::choos_swap_extent(
+VkExtent2D liboceanlight::lol_window::choose_swap_extent(
 	const VkSurfaceCapabilitiesKHR& capabilities)
 {
 	if (capabilities.currentExtent.width !=
@@ -297,11 +307,11 @@ VkExtent2D liboceanlight::lol_window::choos_swap_extent(
 		actual_extent.width = std::clamp(actual_extent.width,
 										 capabilities.minImageExtent.width,
 										 capabilities.maxImageExtent.width);
-										 
+
 		actual_extent.height = std::clamp(actual_extent.height,
 										  capabilities.minImageExtent.height,
 										  capabilities.maxImageExtent.height);
-		
+
 		return actual_extent;
 	}
 }
@@ -515,15 +525,6 @@ VkApplicationInfo populate_instance_app_info()
 											 PROJECT_VER_PATCH);
 
 	return app_info;
-}
-
-VkInstanceCreateInfo populate_instance_create_info(VkApplicationInfo* app_info)
-{
-	VkInstanceCreateInfo create_info {};
-	create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	create_info.pApplicationInfo = app_info;
-	create_info.pNext = nullptr;
-	return create_info;
 }
 
 VkDeviceQueueCreateInfo populate_queue_create_info(uint32_t& queue_family)
