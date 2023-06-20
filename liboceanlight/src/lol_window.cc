@@ -8,7 +8,7 @@
 
 namespace liboceanlight
 {
-	lol_window::lol_window(int w, int h) : width(w), height(h)
+	window::window(int w, int h) : width(w), height(h)
 	{
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
@@ -29,12 +29,12 @@ namespace liboceanlight
 		glfwSetErrorCallback(lol_glfw_error_callback);
 	}
 
-	lol_window::~lol_window()
+	window::~window()
 	{
 		glfwDestroyWindow(window_pointer);
 	}
 
-	VkSurfaceKHR lol_window::create_window_surface(VkInstance& instance)
+	VkSurfaceKHR window::create_window_surface(VkInstance& instance)
 	{
 		VkSurfaceKHR surface {nullptr};
 		VkResult rv = glfwCreateWindowSurface(instance,
@@ -50,7 +50,7 @@ namespace liboceanlight
 		return surface;
 	}
 
-	int lol_window::should_close()
+	int window::should_close()
 	{
 		return glfwWindowShouldClose(window_pointer);
 	}

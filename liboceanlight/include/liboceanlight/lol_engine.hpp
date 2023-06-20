@@ -42,10 +42,12 @@ namespace liboceanlight
 		VkQueue graphics_queue {nullptr};
 		VkQueue present_queue {nullptr};
 		VkSurfaceKHR window_surface {nullptr};
+		VkSwapchainKHR swap_chain {nullptr};
 		VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
-		queue_family_indices_struct indices {};
+		queue_family_indices_struct queue_family_indices {};
 		const std::vector<const char*> device_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+		swap_chain_support_details swap_details {};
 
 #ifdef NDEBUG
 		const bool validation_layers_enabled {false};
@@ -67,10 +69,14 @@ namespace liboceanlight
 
 		~engine()
 		{
+			vkDestroySwapchainKHR(logical_device, swap_chain, nullptr);
+
 			if (window_surface)
 			{
 				vkDestroySurfaceKHR(vulkan_instance, window_surface, nullptr);
 			}
+
+			vkDestroyDevice(logical_device, nullptr);
 
 			if (debug_utils_messenger)
 			{
@@ -79,17 +85,21 @@ namespace liboceanlight
 											  nullptr);
 			}
 
-			vkDestroyDevice(logical_device, nullptr);
 			vkDestroyInstance(vulkan_instance, nullptr);
 			glfwTerminate();
 		}
 
-		void init(liboceanlight::lol_window&);
+		void init(liboceanlight::window&);
 		VkInstance create_vulkan_instance();
-		void run(liboceanlight::lol_window&);
+		void run(liboceanlight::window&);
 		VkPhysicalDevice pick_physical_device();
-		void find_queue_families();
-		struct swap_chain_support_details get_swap_chain_support_details();
+		queue_family_indices_struct find_queue_families();
+		bool device_is_suitable(queue_family_indices_struct&,
+								VkPhysicalDevice&,
+								VkSurfaceKHR&,
+								const std::vector<const char*>&);
+		VkSwapchainKHR create_swap_chain(liboceanlight::window&,
+										 swap_chain_support_details&);
 	};
 } /* namespace liboceanlight */
 
@@ -100,18 +110,14 @@ VkDevice create_logical_device(VkPhysicalDevice&,
 							   queue_family_indices_struct&,
 							   const std::vector<const char*>&);
 
-bool check_vldn_layer_support(
-	const std::vector<const char*>& validation_layers);
-
-void enable_vldn_layers(VkInstanceCreateInfo&, std::vector<const char*>&);
-void enable_dbg_utils_msngr(std::vector<const char*>&,
-							VkDebugUtilsMessengerCreateInfoEXT&,
-							VkInstanceCreateInfo&);
-
-bool device_is_suitable(queue_family_indices_struct&,
-						VkPhysicalDevice&,
-						VkSurfaceKHR&,
-						const std::vector<const char*>&);
+bool check_layer_support(const std::vector<const char*>&);
+bool check_extension_support(const std::vector<const char*>&);
+void setup_instance_layers(VkInstanceCreateInfo&, std::vector<const char*>&);
+void setup_instance_extensions(VkInstanceCreateInfo&,
+							   std::vector<const char*>&);
+void setup_dbg_utils_msngr(std::vector<const char*>&,
+						   VkDebugUtilsMessengerCreateInfoEXT&,
+						   VkInstanceCreateInfo&);
 
 uint32_t rate_device_suitability(const VkPhysicalDevice&);
 VkApplicationInfo populate_instance_app_info(void);
@@ -124,4 +130,9 @@ VkDeviceCreateInfo populate_device_create_info(
 	const std::vector<const char*>&);
 
 std::vector<const char*> get_required_instance_extensions(void);
+struct swap_chain_support_details get_swap_chain_support_details(
+	VkPhysicalDevice&,
+	VkSurfaceKHR&);
+VkSurfaceFormatKHR choose_swap_surface_format(
+	const std::vector<VkSurfaceFormatKHR>&);
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */

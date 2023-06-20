@@ -6,18 +6,18 @@
 
 namespace liboceanlight
 {
-	class lol_window
+	class window
 	{
 		int width, height;
 		const std::string window_name {"Oceanlight"};
 		GLFWwindow* window_pointer {nullptr};
 
 		public:
-		lol_window(int w, int h);
-		~lol_window();
+		window(int w, int h);
+		~window();
 
-		VkSurfaceKHR create_window_surface(VkInstance&);
 		int should_close();
+		VkSurfaceKHR create_window_surface(VkInstance&);
 		VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	};
 }
