@@ -1,3 +1,4 @@
+#include "vulkan/vulkan_core.h"
 #include <algorithm>
 #include <iostream>
 #include <iterator>
@@ -5,6 +6,8 @@
 #include <ostream>
 #include <stdexcept>
 #include <cstdint>
+#include <stdint.h>
+#include <string.h>
 #include <vector>
 #include <map>
 #include <optional>
@@ -18,7 +21,7 @@
 #include <liboceanlight/lol_utility.hpp>
 #include <config.h>
 
-void liboceanlight::engine::run(liboceanlight::lol_window& window)
+void liboceanlight::engine::run(liboceanlight::window& window)
 {
 	while (!window.should_close())
 	{
@@ -27,15 +30,14 @@ void liboceanlight::engine::run(liboceanlight::lol_window& window)
 	}
 }
 
-void liboceanlight::engine::init(liboceanlight::lol_window& window)
+void liboceanlight::engine::init(liboceanlight::window& window)
 {
 	vulkan_instance = create_vulkan_instance();
 	window_surface = window.create_window_surface(vulkan_instance);
 	physical_device = pick_physical_device();
+	queue_family_indices = find_queue_families();
 
-	find_queue_families();
-
-	if (!device_is_suitable(indices,
+	if (!device_is_suitable(queue_family_indices,
 							physical_device,
 							window_surface,
 							device_extensions))
@@ -44,11 +46,13 @@ void liboceanlight::engine::init(liboceanlight::lol_window& window)
 	}
 
 	logical_device = create_logical_device(physical_device,
-										   indices,
+										   queue_family_indices,
 										   device_extensions);
 
+	swap_chain = create_swap_chain(window, swap_details);
+
 	vkGetDeviceQueue(logical_device,
-					 indices.graphics_queue_family.value(),
+					 queue_family_indices.graphics_queue_family.value(),
 					 0,
 					 &graphics_queue);
 
@@ -58,7 +62,7 @@ void liboceanlight::engine::init(liboceanlight::lol_window& window)
 	}
 
 	vkGetDeviceQueue(logical_device,
-					 indices.presentation_queue_family.value(),
+					 queue_family_indices.presentation_queue_family.value(),
 					 0,
 					 &present_queue);
 
@@ -84,30 +88,42 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 
 	/* Get the instance extensions required by the windowing API */
 	std::vector<const char*> extensions = get_required_instance_extensions();
-	
-	/* Set the validation layer to be used if enabled */
-	std::vector<const char*> vldn_layers {"VK_LAYER_KHRONOS_validation"};
+	std::vector<const char*> layers {};
 
+	/* If validation layers are enabled, check if they are supported. If they
+	 * are, then set them up, along with the debug utils messenger */
+	bool layers_supported {false}, extensions_supported {false};
 	VkDebugUtilsMessengerCreateInfoEXT dbg_utils_msngr_create_info {};
-	if (validation_layers_enabled && check_vldn_layer_support(vldn_layers))
+	if (validation_layers_enabled)
 	{
-		enable_vldn_layers(instance_create_info, vldn_layers);
-		enable_dbg_utils_msngr(extensions,
-							   dbg_utils_msngr_create_info,
-							   instance_create_info);
+		layers.push_back("VK_LAYER_KHRONOS_validation");
+		layers_supported = check_layer_support(layers);
+		if (layers_supported)
+		{
+			setup_dbg_utils_msngr(extensions,
+								  dbg_utils_msngr_create_info,
+								  instance_create_info);
+		}
+		else
+		{
+			layers.pop_back();
+		}
 	}
 
-	instance_create_info.enabledExtensionCount = static_cast<uint32_t>(
-		extensions.size());
-	instance_create_info.ppEnabledExtensionNames = extensions.data();
+	/* Set up our instance layers */
+	setup_instance_layers(instance_create_info, layers);
 
-	uint32_t extension_count {0};
-	vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-
-	std::vector<VkExtensionProperties> vulkan_extensions(extension_count);
-	vkEnumerateInstanceExtensionProperties(nullptr,
-										   &extension_count,
-										   vulkan_extensions.data());
+	/* Check if all of our instance extensions are supported. If they are not,
+	 * we have a problem */
+	extensions_supported = check_extension_support(extensions);
+	if (extensions_supported)
+	{
+		setup_instance_extensions(instance_create_info, extensions);
+	}
+	else
+	{
+		std::runtime_error("Missing some required instance extensions.");
+	}
 
 	/* Create our instance */
 	VkInstance instance {nullptr};
@@ -118,7 +134,13 @@ VkInstance liboceanlight::engine::create_vulkan_instance()
 		throw std::runtime_error("Failed to create Vulkan instance.");
 	}
 
-	if (validation_layers_enabled)
+	/* In vulkan, the debug utils messenger can be created twice. Once before
+	 * instance creation, and once after. This is so we can print debug
+	 * messages relevant to the instance creation itself. We've already used
+	 * the "pre-instance" debug messenger by setting pNext in our struct, so
+	 * now we will create the "post-instance" debug messenger, which will take
+	 * over from here on out */
+	if (layers_supported)
 	{
 		rv = CreateDebugUtilsMessengerEXT(instance,
 										  &dbg_utils_msngr_create_info,
@@ -288,7 +310,7 @@ VkPresentModeKHR choose_swap_present_mode(
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D liboceanlight::lol_window::choose_swap_extent(
+VkExtent2D liboceanlight::window::choose_swap_extent(
 	const VkSurfaceCapabilitiesKHR& capabilities)
 {
 	if (capabilities.currentExtent.width !=
@@ -316,6 +338,70 @@ VkExtent2D liboceanlight::lol_window::choose_swap_extent(
 	}
 }
 
+VkSwapchainKHR liboceanlight::engine::create_swap_chain(
+	liboceanlight::window& window,
+	swap_chain_support_details& details)
+{
+	VkSurfaceFormatKHR surface_format = choose_swap_surface_format(
+		swap_details.formats);
+	VkPresentModeKHR present_mode = choose_swap_present_mode(
+		swap_details.present_modes);
+	VkExtent2D extent = window.choose_swap_extent(swap_details.capabilities);
+
+	uint32_t min_image_count = swap_details.capabilities.minImageCount;
+	uint32_t image_count = min_image_count + 1;
+	uint32_t max_image_count = swap_details.capabilities.maxImageCount;
+
+	if (max_image_count > 0 && image_count > max_image_count)
+	{
+		image_count = max_image_count;
+	}
+
+	VkSwapchainCreateInfoKHR create_info {};
+	create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	create_info.surface = window_surface;
+	create_info.minImageCount = image_count;
+	create_info.imageFormat = surface_format.format;
+	create_info.imageColorSpace = surface_format.colorSpace;
+	create_info.imageExtent = extent;
+	create_info.imageArrayLayers = 1;
+	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	uint32_t indices[] = {
+		queue_family_indices.graphics_queue_family.value(),
+		queue_family_indices.presentation_queue_family.value()};
+
+	if (queue_family_indices.graphics_queue_family !=
+		queue_family_indices.presentation_queue_family)
+	{
+		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		create_info.queueFamilyIndexCount = 2;
+		create_info.pQueueFamilyIndices = indices;
+	}
+	else
+	{
+		create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		create_info.queueFamilyIndexCount = 0;
+		create_info.pQueueFamilyIndices = nullptr;
+	}
+
+	create_info.preTransform = swap_details.capabilities.currentTransform;
+	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	create_info.presentMode = present_mode;
+	create_info.clipped = VK_TRUE;
+	create_info.oldSwapchain = VK_NULL_HANDLE;
+
+	VkSwapchainKHR sw {nullptr};
+
+	if (vkCreateSwapchainKHR(logical_device, &create_info, nullptr, &sw) !=
+		VK_SUCCESS)
+	{
+		std::runtime_error("Failed to create swap chain");
+	}
+
+	return sw;
+}
+
 uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
 {
 	uint32_t score {0};
@@ -341,8 +427,9 @@ uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
 	return score;
 }
 
-void liboceanlight::engine::find_queue_families()
+queue_family_indices_struct liboceanlight::engine::find_queue_families()
 {
+	queue_family_indices_struct indices;
 	VkBool32 present_support {false};
 	uint32_t queue_family_count {0};
 	vkGetPhysicalDeviceQueueFamilyProperties(physical_device,
@@ -386,6 +473,8 @@ void liboceanlight::engine::find_queue_families()
 
 		++i;
 	}
+
+	return indices;
 }
 
 bool check_device_extension_support(
@@ -415,25 +504,23 @@ bool check_device_extension_support(
 	return required_extensions.empty();
 }
 
-bool device_is_suitable(queue_family_indices_struct& indices,
-						VkPhysicalDevice& device,
-						VkSurfaceKHR& window_surface,
-						const std::vector<const char*>& device_extensions)
+bool liboceanlight::engine::device_is_suitable(
+	queue_family_indices_struct& indices,
+	VkPhysicalDevice& device,
+	VkSurfaceKHR& window_surface,
+	const std::vector<const char*>& device_extensions)
 {
 	bool extensions_supported = check_device_extension_support(
 		device,
 		device_extensions);
 
 	bool swap_chain_adequate = false;
-
 	if (extensions_supported)
 	{
-		swap_chain_support_details details = get_swap_chain_support_details(
-			device,
-			window_surface);
+		swap_details = get_swap_chain_support_details(device, window_surface);
 
-		swap_chain_adequate = !details.formats.empty() &&
-							  !details.present_modes.empty();
+		swap_chain_adequate = !swap_details.formats.empty() &&
+							  !swap_details.present_modes.empty();
 	}
 
 	return indices.graphics_queue_family.has_value() &&
@@ -441,7 +528,7 @@ bool device_is_suitable(queue_family_indices_struct& indices,
 		   extensions_supported && swap_chain_adequate;
 }
 
-void enable_dbg_utils_msngr(
+void setup_dbg_utils_msngr(
 	std::vector<const char*>& extensions,
 	VkDebugUtilsMessengerCreateInfoEXT& dbg_utils_msngr_create_info,
 	VkInstanceCreateInfo& instance_create_info)
@@ -452,23 +539,34 @@ void enable_dbg_utils_msngr(
 		(VkDebugUtilsMessengerCreateInfoEXT*)&dbg_utils_msngr_create_info;
 }
 
-void enable_vldn_layers(VkInstanceCreateInfo& c_info,
-						std::vector<const char*>& vldn_layers)
+void setup_instance_layers(VkInstanceCreateInfo& c_info,
+						   std::vector<const char*>& layers)
 {
-	c_info.enabledLayerCount = static_cast<uint32_t>(vldn_layers.size());
-	c_info.ppEnabledLayerNames = vldn_layers.data();
+	if (layers.size() > 0)
+	{
+		c_info.enabledLayerCount = static_cast<uint32_t>(layers.size());
+		c_info.ppEnabledLayerNames = layers.data();
+	}
 }
 
-bool check_vldn_layer_support(const std::vector<const char*>& vldn_layers)
+void setup_instance_extensions(VkInstanceCreateInfo& c_info,
+							   std::vector<const char*>& extensions)
 {
-	uint32_t count {0};
-	vkEnumerateInstanceLayerProperties(&count, nullptr);
+	c_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+	c_info.ppEnabledExtensionNames = extensions.data();
+}
 
-	std::vector<VkLayerProperties> layer_properties(count);
-	vkEnumerateInstanceLayerProperties(&count, layer_properties.data());
+bool check_layer_support(const std::vector<const char*>& layers)
+{
+	uint32_t layer_count {0};
+	vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
 
-	bool layer_found;
-	for (const char* layer : vldn_layers)
+	std::vector<VkLayerProperties> layer_properties(layer_count);
+	vkEnumerateInstanceLayerProperties(&layer_count, layer_properties.data());
+
+	int layers_found {0};
+	bool layer_found, all_layers_found {false};
+	for (const char* layer : layers)
 	{
 		layer_found = false;
 
@@ -477,17 +575,66 @@ bool check_vldn_layer_support(const std::vector<const char*>& vldn_layers)
 			if (strcmp(layer, i.layerName) == 0)
 			{
 				layer_found = true;
-				std::cout << "Found Validation Layer: \n" << layer << "\n";
+				++layers_found;
+				std::cout << "Layer Found: " << layer << "\n";
+				break;
 			}
 		}
 
 		if (!layer_found)
 		{
-			std::cerr << "LAYER NOT FOUND: " << layer << "\n";
-			throw std::runtime_error("Did not find validation layer.");
+			std::cerr << "Layer Not Found: " << layer << "\n";
 		}
 	}
-	return true;
+
+	if (layers_found == layers.size())
+	{
+		all_layers_found = true;
+		std::cout << "ALL INSTANCE LAYERS FOUND\n";
+	}
+
+	return all_layers_found;
+}
+
+bool check_extension_support(const std::vector<const char*>& extensions)
+{
+	uint32_t extension_count {0};
+	vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
+
+	std::vector<VkExtensionProperties> extension_properties(extension_count);
+	vkEnumerateInstanceExtensionProperties(nullptr,
+										   &extension_count,
+										   extension_properties.data());
+
+	int extensions_found {0};
+	bool extension_found, all_extensions_found {false};
+	for (const char* extension : extensions)
+	{
+		extension_found = false;
+
+		for (const auto& i : extension_properties)
+		{
+			if (strcmp(extension, i.extensionName) == 0)
+			{
+				extension_found = true;
+				++extensions_found;
+				std::cout << "Extension Found: " << extension << "\n";
+			}
+		}
+
+		if (!extension_found)
+		{
+			std::cerr << "Extension Not Found: " << extension << "\n";
+		}
+	}
+
+	if (extensions_found == extensions.size())
+	{
+		all_extensions_found = true;
+		std::cout << "ALL INSTANCE EXTENSIONS FOUND\n";
+	}
+
+	return all_extensions_found;
 }
 
 std::vector<const char*> get_required_instance_extensions()

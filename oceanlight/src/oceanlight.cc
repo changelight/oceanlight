@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 		}
 
 		static liboceanlight::engine engine;
-		liboceanlight::lol_window window(args.width, args.height);
+		liboceanlight::window window(args.width, args.height);
 		engine.init(window);
 		engine.run(window);
 	}
