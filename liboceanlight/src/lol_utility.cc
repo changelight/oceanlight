@@ -1,5 +1,6 @@
 #include <initializer_list>
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <string>
 #include <sstream>
@@ -32,6 +33,24 @@ std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
     }
 
 	return formatted.str() + "|";
+}
+
+std::vector<char> liboceanlight::read_file(const std::string& filename)
+{
+	std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Failed to open file");
+	}
+
+	size_t filesize = (size_t) file.tellg();
+	std::vector<char> buffer(filesize);
+	file.seekg(0);
+	file.read(buffer.data(), filesize);
+	file.close();
+
+	return buffer;
 }
 
 int liboceanlight::test_func(int a, int b)

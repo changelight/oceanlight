@@ -1,4 +1,3 @@
-#include "vulkan/vulkan_core.h"
 #include <algorithm>
 #include <iostream>
 #include <iterator>
@@ -49,8 +48,6 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 										   queue_family_indices,
 										   device_extensions);
 
-	swap_chain = create_swap_chain(window, swap_details);
-
 	vkGetDeviceQueue(logical_device,
 					 queue_family_indices.graphics_queue_family.value(),
 					 0,
@@ -70,6 +67,10 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 	{
 		throw std::runtime_error("Could not get presentation queue handle.");
 	}
+
+	swap_chain = create_swap_chain(window, swap_details);
+	swap_chain_image_views = create_image_views();
+	create_graphics_pipeline();
 }
 
 /* Create the Vulkan instance */
@@ -346,7 +347,8 @@ VkSwapchainKHR liboceanlight::engine::create_swap_chain(
 		swap_details.formats);
 	VkPresentModeKHR present_mode = choose_swap_present_mode(
 		swap_details.present_modes);
-	VkExtent2D extent = window.choose_swap_extent(swap_details.capabilities);
+	swap_extent = window.choose_swap_extent(swap_details.capabilities);
+	swap_chain_image_format = surface_format.format;
 
 	uint32_t min_image_count = swap_details.capabilities.minImageCount;
 	uint32_t image_count = min_image_count + 1;
@@ -361,9 +363,9 @@ VkSwapchainKHR liboceanlight::engine::create_swap_chain(
 	create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	create_info.surface = window_surface;
 	create_info.minImageCount = image_count;
-	create_info.imageFormat = surface_format.format;
+	create_info.imageFormat = swap_chain_image_format;
 	create_info.imageColorSpace = surface_format.colorSpace;
-	create_info.imageExtent = extent;
+	create_info.imageExtent = swap_extent;
 	create_info.imageArrayLayers = 1;
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -399,7 +401,100 @@ VkSwapchainKHR liboceanlight::engine::create_swap_chain(
 		std::runtime_error("Failed to create swap chain");
 	}
 
+	vkGetSwapchainImagesKHR(logical_device, sw, &image_count, nullptr);
+	swap_chain_images.resize(image_count);
+	vkGetSwapchainImagesKHR(logical_device,
+							sw,
+							&image_count,
+							swap_chain_images.data());
+
 	return sw;
+}
+
+std::vector<VkImageView> liboceanlight::engine::create_image_views()
+{
+	std::vector<VkImageView> image_views;
+	image_views.resize(swap_chain_images.size());
+
+	for (size_t i {0}; i < swap_chain_images.size(); ++i)
+	{
+		VkImageViewCreateInfo create_info {};
+		create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		create_info.image = swap_chain_images[i];
+		create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		create_info.format = swap_chain_image_format;
+		create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+		create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		create_info.subresourceRange.baseMipLevel = 0;
+		create_info.subresourceRange.levelCount = 1;
+		create_info.subresourceRange.baseArrayLayer = 0;
+		create_info.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(logical_device,
+							  &create_info,
+							  nullptr,
+							  &image_views[i]) != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create image views.");
+		}
+	}
+
+	return image_views;
+}
+
+void liboceanlight::engine::create_graphics_pipeline()
+{
+	auto vertex_shader_code = read_file("../../shaders/vertex_shader.spv");
+	auto fragment_shader_code = read_file("../../shaders/fragment_shader.spv");
+
+	VkShaderModule vertex_shader = create_shader_module(vertex_shader_code);
+	VkShaderModule fragment_shader = create_shader_module(
+		fragment_shader_code);
+
+	VkPipelineShaderStageCreateInfo vertex_shader_stage_create_info {};
+	vertex_shader_stage_create_info.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertex_shader_stage_create_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertex_shader_stage_create_info.module = vertex_shader;
+	vertex_shader_stage_create_info.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragment_shader_stage_create_info {};
+	fragment_shader_stage_create_info.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragment_shader_stage_create_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragment_shader_stage_create_info.module = fragment_shader;
+	fragment_shader_stage_create_info.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shader_stages[] = {
+		vertex_shader_stage_create_info,
+		fragment_shader_stage_create_info};
+
+	vkDestroyShaderModule(logical_device, vertex_shader, nullptr);
+	vkDestroyShaderModule(logical_device, fragment_shader, nullptr);
+}
+
+VkShaderModule liboceanlight::engine::create_shader_module(
+	const std::vector<char>& shader_code)
+{
+	VkShaderModuleCreateInfo create_info {};
+	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	create_info.codeSize = shader_code.size();
+	create_info.pCode = reinterpret_cast<const uint32_t*>(shader_code.data());
+
+	VkShaderModule shader_module;
+	auto rv = vkCreateShaderModule(logical_device,
+								   &create_info,
+								   nullptr,
+								   &shader_module);
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create shader module");
+	}
+
+	return shader_module;
 }
 
 uint32_t rate_device_suitability(const VkPhysicalDevice& physical_device)
