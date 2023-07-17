@@ -48,6 +48,10 @@ namespace liboceanlight
 		const std::vector<const char*> device_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 		swap_chain_support_details swap_details {};
+		VkExtent2D swap_extent {};
+		VkFormat swap_chain_image_format;
+		std::vector<VkImage> swap_chain_images;
+		std::vector<VkImageView> swap_chain_image_views;
 
 #ifdef NDEBUG
 		const bool validation_layers_enabled {false};
@@ -69,6 +73,11 @@ namespace liboceanlight
 
 		~engine()
 		{
+			for (auto image_view : swap_chain_image_views)
+			{
+				vkDestroyImageView(logical_device, image_view, nullptr);
+			}
+
 			vkDestroySwapchainKHR(logical_device, swap_chain, nullptr);
 
 			if (window_surface)
@@ -100,6 +109,9 @@ namespace liboceanlight
 								const std::vector<const char*>&);
 		VkSwapchainKHR create_swap_chain(liboceanlight::window&,
 										 swap_chain_support_details&);
+		std::vector<VkImageView> create_image_views();
+		void create_graphics_pipeline();
+		VkShaderModule create_shader_module(const std::vector<char>&);
 	};
 } /* namespace liboceanlight */
 
