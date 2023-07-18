@@ -35,6 +35,21 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 find_package(Vulkan REQUIRED)
+
+set(SHADER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
+set(SHADER_DST_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(GLOB SHADERS ${SHADER_SRC_DIR}/*.vert ${SHADER_SRC_DIR}/*.frag)
+foreach(SHADER IN LISTS SHADERS)
+    get_filename_component(FILENAME ${SHADER} NAME_WE)
+    add_custom_command(OUTPUT ${SHADER_DST_DIR}/${FILENAME}.spv
+        COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${SHADER} -o ${SHADER_DST_DIR}/${FILENAME}.spv
+        DEPENDS ${SHADER}
+        COMMENT "Compiling shader ${FILENAME}")
+    list(APPEND SPV_SHADERS ${SHADER_DST_DIR}/${FILENAME}.spv)
+endforeach(SHADER IN LISTS SHADERS)
+add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
+add_dependencies(liboceanlight shaders)
+
 target_include_directories(liboceanlight PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}" ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} glfw glm)
 
