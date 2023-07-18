@@ -41,7 +41,7 @@ std::vector<char> liboceanlight::read_file(const std::string& filename)
 
 	if (!file.is_open())
 	{
-		throw std::runtime_error("Failed to open file");
+		throw std::runtime_error("Failed to open file " + filename);
 	}
 
 	size_t filesize = (size_t) file.tellg();
