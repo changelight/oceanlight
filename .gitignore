@@ -1,5 +1,6 @@
 # Don't track build directory
 build
+build-linux
 
 # Don't track Visual studio code configuration
 .vscode

@@ -507,10 +507,8 @@ std::vector<VkImageView> liboceanlight::engine::create_image_views()
 
 void liboceanlight::engine::create_graphics_pipeline()
 {
-	auto vertex_shader_code = read_file(
-		"./liboceanlight/shaders/vertex_shader.spv");
-	auto fragment_shader_code = read_file(
-		"./liboceanlight/shaders/fragment_shader.spv");
+	auto vertex_shader_code = read_file(SHADER_PATH "vertex_shader.spv");
+	auto fragment_shader_code = read_file(SHADER_PATH "fragment_shader.spv");
 
 	VkShaderModule vertex_shader = create_shader_module(vertex_shader_code);
 	VkShaderModule fragment_shader = create_shader_module(
