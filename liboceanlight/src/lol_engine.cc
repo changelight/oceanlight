@@ -24,9 +24,64 @@ void liboceanlight::engine::run(liboceanlight::window& window)
 {
 	while (!window.should_close())
 	{
-		// glfwSwapBuffers(window);
 		glfwWaitEvents();
+		draw_frame();
 	}
+
+	vkDeviceWaitIdle(logical_device);
+}
+
+void liboceanlight::engine::draw_frame()
+{
+	vkWaitForFences(logical_device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
+	vkResetFences(logical_device, 1, &in_flight_fence);
+
+	uint32_t image_index;
+	vkAcquireNextImageKHR(logical_device,
+						  swap_chain,
+						  UINT64_MAX,
+						  image_available_semaphore,
+						  VK_NULL_HANDLE,
+						  &image_index);
+
+	vkResetCommandBuffer(command_buffer, 0);
+	record_command_buffer(command_buffer, image_index);
+
+	VkSubmitInfo submit_info {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	VkSemaphore wait_semaphores[] = {image_available_semaphore};
+	VkPipelineStageFlags wait_stages[] = {
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = wait_semaphores;
+	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &command_buffer;
+
+	VkSemaphore signal_semaphores[] = {rendering_finished_semaphore};
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+
+	auto rv = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to submit command buffer");
+	}
+
+	VkPresentInfoKHR present_info {};
+	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = signal_semaphores;
+
+	VkSwapchainKHR swap_chains[] = {swap_chain};
+	present_info.swapchainCount = 1;
+	present_info.pSwapchains = swap_chains;
+	present_info.pImageIndices = &image_index;
+	present_info.pResults = nullptr;
+
+	vkQueuePresentKHR(graphics_queue, &present_info);
 }
 
 void liboceanlight::engine::init(liboceanlight::window& window)
@@ -70,8 +125,12 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 
 	swap_chain = create_swap_chain(window, swap_details);
 	swap_chain_image_views = create_image_views();
-	create_graphics_pipeline();
 	create_render_pass();
+	create_graphics_pipeline();
+	create_framebuffers();
+	create_command_pool();
+	create_command_buffer();
+	create_sync_objects();
 }
 
 /* Create the Vulkan instance */
@@ -448,8 +507,10 @@ std::vector<VkImageView> liboceanlight::engine::create_image_views()
 
 void liboceanlight::engine::create_graphics_pipeline()
 {
-	auto vertex_shader_code = read_file("../liboceanlight/shaders/vertex_shader.spv");
-	auto fragment_shader_code = read_file("../liboceanlight/shaders/fragment_shader.spv");
+	auto vertex_shader_code = read_file(
+		"../liboceanlight/shaders/vertex_shader.spv");
+	auto fragment_shader_code = read_file(
+		"../liboceanlight/shaders/fragment_shader.spv");
 
 	VkShaderModule vertex_shader = create_shader_module(vertex_shader_code);
 	VkShaderModule fragment_shader = create_shader_module(
@@ -588,6 +649,42 @@ void liboceanlight::engine::create_graphics_pipeline()
 		throw std::runtime_error("Failed to create pipeline layout");
 	}
 
+	VkGraphicsPipelineCreateInfo graphics_pipeline_create_info {};
+	graphics_pipeline_create_info.sType =
+		VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	graphics_pipeline_create_info.stageCount = 2;
+	graphics_pipeline_create_info.pStages = shader_stages;
+	graphics_pipeline_create_info.pVertexInputState =
+		&vertex_input_create_info;
+	graphics_pipeline_create_info.pInputAssemblyState =
+		&input_assembly_create_info;
+	graphics_pipeline_create_info.pViewportState = &viewport_state_create_info;
+	graphics_pipeline_create_info.pRasterizationState =
+		&rasterizer_state_create_info;
+	graphics_pipeline_create_info.pMultisampleState =
+		&multisampling_state_create_info;
+	graphics_pipeline_create_info.pDepthStencilState = nullptr;
+	graphics_pipeline_create_info.pColorBlendState =
+		&color_blend_state_create_info;
+	graphics_pipeline_create_info.pDynamicState = &dynamic_state_create_info;
+	graphics_pipeline_create_info.layout = pipeline_layout;
+	graphics_pipeline_create_info.renderPass = render_pass;
+	graphics_pipeline_create_info.subpass = 0;
+	graphics_pipeline_create_info.basePipelineHandle = VK_NULL_HANDLE;
+	graphics_pipeline_create_info.basePipelineIndex = -1;
+
+	rv = vkCreateGraphicsPipelines(logical_device,
+								   VK_NULL_HANDLE,
+								   1,
+								   &graphics_pipeline_create_info,
+								   NULL,
+								   &graphics_pipeline);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create graphics pipeline");
+	}
+
 	vkDestroyShaderModule(logical_device, vertex_shader, nullptr);
 	vkDestroyShaderModule(logical_device, fragment_shader, nullptr);
 }
@@ -599,10 +696,211 @@ void liboceanlight::engine::create_render_pass()
 	color_attachment_description.samples = VK_SAMPLE_COUNT_1_BIT;
 	color_attachment_description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	color_attachment_description.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	color_attachment_description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	color_attachment_description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment_description.stencilLoadOp =
+		VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment_description.stencilStoreOp =
+		VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment_description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	color_attachment_description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference color_attachment_reference {};
+	color_attachment_reference.attachment = 0;
+	color_attachment_reference.layout =
+		VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass_description {};
+	subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass_description.colorAttachmentCount = 1;
+	subpass_description.pColorAttachments = &color_attachment_reference;
+
+	VkSubpassDependency subpass_dependency {};
+	subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	subpass_dependency.dstSubpass = 0;
+	subpass_dependency.srcStageMask =
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.dstStageMask =
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependency.srcAccessMask = 0;
+	subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+	VkRenderPassCreateInfo render_pass_create_info {};
+	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.pAttachments = &color_attachment_description;
+	render_pass_create_info.subpassCount = 1;
+	render_pass_create_info.pSubpasses = &subpass_description;
+	render_pass_create_info.dependencyCount = 1;
+	render_pass_create_info.pDependencies = &subpass_dependency;
+
+	auto rv = vkCreateRenderPass(logical_device,
+								 &render_pass_create_info,
+								 nullptr,
+								 &render_pass);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create render pass");
+	}
+}
+
+void liboceanlight::engine::create_framebuffers()
+{
+	swap_chain_frame_buffers.resize(swap_chain_image_views.size());
+
+	for (size_t i {0}; i < swap_chain_image_views.size(); ++i)
+	{
+		VkImageView attachments[] = {swap_chain_image_views[i]};
+
+		VkFramebufferCreateInfo frame_buffer_create_info {};
+		frame_buffer_create_info.sType =
+			VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		frame_buffer_create_info.renderPass = render_pass;
+		frame_buffer_create_info.attachmentCount = 1;
+		frame_buffer_create_info.pAttachments = attachments;
+		frame_buffer_create_info.width = swap_chain_extent.width;
+		frame_buffer_create_info.height = swap_chain_extent.height;
+		frame_buffer_create_info.layers = 1;
+
+		auto rv = vkCreateFramebuffer(logical_device,
+									  &frame_buffer_create_info,
+									  nullptr,
+									  &swap_chain_frame_buffers[i]);
+
+		if (rv != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create image frambuffers");
+		}
+	}
+}
+
+void liboceanlight::engine::create_command_pool()
+{
+	VkCommandPoolCreateInfo command_pool_create_info {};
+	command_pool_create_info.sType =
+		VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	command_pool_create_info.flags =
+		VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	command_pool_create_info.queueFamilyIndex =
+		queue_family_indices.graphics_queue_family.value();
+
+	auto rv = vkCreateCommandPool(logical_device,
+								  &command_pool_create_info,
+								  nullptr,
+								  &command_pool);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create command pool");
+	}
+}
+
+void liboceanlight::engine::create_command_buffer()
+{
+	VkCommandBufferAllocateInfo command_buffer_allocate_create_info {};
+	command_buffer_allocate_create_info.sType =
+		VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	command_buffer_allocate_create_info.commandPool = command_pool;
+	command_buffer_allocate_create_info.level =
+		VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	command_buffer_allocate_create_info.commandBufferCount = 1;
+
+	auto rv = vkAllocateCommandBuffers(logical_device,
+									   &command_buffer_allocate_create_info,
+									   &command_buffer);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate command buffers");
+	}
+}
+
+void liboceanlight::engine::record_command_buffer(
+	VkCommandBuffer& command_buffer,
+	uint32_t image_index)
+{
+	VkCommandBufferBeginInfo command_buffer_begin_info {};
+	command_buffer_begin_info.sType =
+		VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	command_buffer_begin_info.flags = 0;
+	command_buffer_begin_info.pInheritanceInfo = nullptr;
+
+	auto rv = vkBeginCommandBuffer(command_buffer, &command_buffer_begin_info);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to record command buffer");
+	}
+
+	VkRenderPassBeginInfo render_pass_begin_info {};
+	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_begin_info.renderPass = render_pass;
+	render_pass_begin_info.framebuffer = swap_chain_frame_buffers[image_index];
+	render_pass_begin_info.renderArea.offset = {0, 0};
+	render_pass_begin_info.renderArea.extent = swap_chain_extent;
+
+	VkClearValue clear_value = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+	render_pass_begin_info.clearValueCount = 1;
+	render_pass_begin_info.pClearValues = &clear_value;
+
+	vkCmdBeginRenderPass(command_buffer,
+						 &render_pass_begin_info,
+						 VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(command_buffer,
+					  VK_PIPELINE_BIND_POINT_GRAPHICS,
+					  graphics_pipeline);
+
+	VkViewport viewport {};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<float>(swap_chain_extent.width);
+	viewport.height = static_cast<float>(swap_chain_extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+	VkRect2D scissor {};
+	scissor.offset = {0, 0};
+	scissor.extent = swap_chain_extent;
+	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+	vkCmdDraw(command_buffer, 3, 1, 0, 0);
+	vkCmdEndRenderPass(command_buffer);
+
+	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to end command buffer");
+	}
+}
+
+void liboceanlight::engine::create_sync_objects()
+{
+	VkSemaphoreCreateInfo semaphore_create_info {};
+	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	VkFenceCreateInfo fence_create_info {};
+	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	auto rv1 = vkCreateSemaphore(logical_device,
+								 &semaphore_create_info,
+								 nullptr,
+								 &image_available_semaphore);
+
+	auto rv2 = vkCreateSemaphore(logical_device,
+								 &semaphore_create_info,
+								 nullptr,
+								 &rendering_finished_semaphore);
+
+	auto rv3 = vkCreateFence(logical_device,
+							 &fence_create_info,
+							 nullptr,
+							 &in_flight_fence);
+
+	if (rv1 != VK_SUCCESS || rv2 != VK_SUCCESS || rv3 != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create synchronization objects");
+	}
 }
 
 VkShaderModule liboceanlight::engine::create_shader_module(

@@ -52,7 +52,15 @@ namespace liboceanlight
 		VkFormat swap_chain_image_format;
 		std::vector<VkImage> swap_chain_images;
 		std::vector<VkImageView> swap_chain_image_views;
+		VkRenderPass render_pass {nullptr};
 		VkPipelineLayout pipeline_layout {nullptr};
+		VkPipeline graphics_pipeline;
+		std::vector<VkFramebuffer> swap_chain_frame_buffers;
+		VkCommandPool command_pool {nullptr};
+		VkCommandBuffer command_buffer {nullptr};
+		VkSemaphore image_available_semaphore {nullptr};
+		VkSemaphore rendering_finished_semaphore {nullptr};
+		VkFence in_flight_fence {nullptr};
 
 #ifdef NDEBUG
 		const bool validation_layers_enabled {false};
@@ -74,7 +82,25 @@ namespace liboceanlight
 
 		~engine()
 		{
+			vkDestroySemaphore(logical_device,
+							   image_available_semaphore,
+							   nullptr);
+
+			vkDestroySemaphore(logical_device,
+							   rendering_finished_semaphore,
+							   nullptr);
+							   
+			vkDestroyFence(logical_device, in_flight_fence, nullptr);
+			vkDestroyCommandPool(logical_device, command_pool, nullptr);
+
+			for (auto framebuffer : swap_chain_frame_buffers)
+			{
+				vkDestroyFramebuffer(logical_device, framebuffer, nullptr);
+			}
+
+			vkDestroyPipeline(logical_device, graphics_pipeline, nullptr);
 			vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
+			vkDestroyRenderPass(logical_device, render_pass, nullptr);
 
 			for (auto image_view : swap_chain_image_views)
 			{
@@ -116,6 +142,12 @@ namespace liboceanlight
 		void create_graphics_pipeline();
 		VkShaderModule create_shader_module(const std::vector<char>&);
 		void create_render_pass();
+		void create_framebuffers();
+		void create_command_pool();
+		void create_command_buffer();
+		void record_command_buffer(VkCommandBuffer&, uint32_t);
+		void draw_frame();
+		void create_sync_objects();
 	};
 } /* namespace liboceanlight */
 
