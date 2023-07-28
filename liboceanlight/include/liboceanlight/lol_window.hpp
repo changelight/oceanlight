@@ -10,9 +10,10 @@ namespace liboceanlight
 	{
 		int width, height;
 		const std::string window_name {"Oceanlight"};
-		GLFWwindow* window_pointer {nullptr};
 
 		public:
+		GLFWwindow* window_pointer {nullptr};
+		bool framebuffer_resized {false};
 		window(int w, int h);
 		~window();
 
