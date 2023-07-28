@@ -2,9 +2,9 @@
 #include <stdexcept>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_window.hpp>
-#include <liboceanlight/lol_glfw_key_callback.hpp>
-#include <liboceanlight/lol_glfw_err_callback.hpp>
+#include <liboceanlight/lol_glfw_callbacks.hpp>
 
 namespace liboceanlight
 {
@@ -12,7 +12,7 @@ namespace liboceanlight
 	{
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 		window_pointer = glfwCreateWindow(width,
 										  height,
@@ -24,9 +24,12 @@ namespace liboceanlight
 		{
 			throw std::runtime_error("Could not create window");
 		}
-		
-		glfwSetKeyCallback(window_pointer, lol_glfw_key_callback);
+
 		glfwSetErrorCallback(lol_glfw_error_callback);
+		glfwSetKeyCallback(window_pointer, lol_glfw_key_callback);
+		glfwSetWindowUserPointer(window_pointer, this);
+		glfwSetFramebufferSizeCallback(window_pointer,
+									   lol_glfw_framebuffer_size_callback);
 	}
 
 	window::~window()

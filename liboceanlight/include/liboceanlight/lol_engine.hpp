@@ -6,8 +6,7 @@
 #include <vector>
 #include <optional>
 #include <liboceanlight/lol_debug_messenger.hpp>
-#include <liboceanlight/lol_glfw_key_callback.hpp>
-#include <liboceanlight/lol_glfw_err_callback.hpp>
+#include <liboceanlight/lol_glfw_callbacks.hpp>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <config.h>
@@ -36,14 +35,13 @@ namespace liboceanlight
 {
 	class engine
 	{
+		VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 		VkInstance vulkan_instance {nullptr};
 		VkDevice logical_device {nullptr};
 		VkPhysicalDevice physical_device {nullptr};
-		VkQueue graphics_queue {nullptr};
-		VkQueue present_queue {nullptr};
+		VkQueue graphics_queue {nullptr}, present_queue {nullptr};
 		VkSurfaceKHR window_surface {nullptr};
 		VkSwapchainKHR swap_chain {nullptr};
-		VkDebugUtilsMessengerEXT debug_utils_messenger {nullptr};
 		queue_family_indices_struct queue_family_indices {};
 		const std::vector<const char*> device_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -54,13 +52,15 @@ namespace liboceanlight
 		std::vector<VkImageView> swap_chain_image_views;
 		VkRenderPass render_pass {nullptr};
 		VkPipelineLayout pipeline_layout {nullptr};
-		VkPipeline graphics_pipeline;
+		VkPipeline graphics_pipeline {nullptr};
 		std::vector<VkFramebuffer> swap_chain_frame_buffers;
 		VkCommandPool command_pool {nullptr};
-		VkCommandBuffer command_buffer {nullptr};
-		VkSemaphore image_available_semaphore {nullptr};
-		VkSemaphore rendering_finished_semaphore {nullptr};
-		VkFence in_flight_fence {nullptr};
+		std::vector<VkCommandBuffer> command_buffers;
+		std::vector<VkSemaphore> image_available_semaphores;
+		std::vector<VkSemaphore> rendering_finished_semaphores;
+		std::vector<VkFence> in_flight_fences;
+		const unsigned short int max_frames_in_flight {2};
+		unsigned short int current_frame {0};
 
 #ifdef NDEBUG
 		const bool validation_layers_enabled {false};
@@ -82,32 +82,26 @@ namespace liboceanlight
 
 		~engine()
 		{
-			vkDestroySemaphore(logical_device,
-							   image_available_semaphore,
-							   nullptr);
+			cleanup_swap_chain();
 
-			vkDestroySemaphore(logical_device,
-							   rendering_finished_semaphore,
-							   nullptr);
-							   
-			vkDestroyFence(logical_device, in_flight_fence, nullptr);
-			vkDestroyCommandPool(logical_device, command_pool, nullptr);
-
-			for (auto framebuffer : swap_chain_frame_buffers)
+			for (auto i {0}; i < max_frames_in_flight; ++i)
 			{
-				vkDestroyFramebuffer(logical_device, framebuffer, nullptr);
+				vkDestroySemaphore(logical_device,
+								   image_available_semaphores[i],
+								   nullptr);
+
+				vkDestroySemaphore(logical_device,
+								   rendering_finished_semaphores[i],
+								   nullptr);
+
+				vkDestroyFence(logical_device, in_flight_fences[i], nullptr);
 			}
+
+			vkDestroyCommandPool(logical_device, command_pool, nullptr);
 
 			vkDestroyPipeline(logical_device, graphics_pipeline, nullptr);
 			vkDestroyPipelineLayout(logical_device, pipeline_layout, nullptr);
 			vkDestroyRenderPass(logical_device, render_pass, nullptr);
-
-			for (auto image_view : swap_chain_image_views)
-			{
-				vkDestroyImageView(logical_device, image_view, nullptr);
-			}
-
-			vkDestroySwapchainKHR(logical_device, swap_chain, nullptr);
 
 			if (window_surface)
 			{
@@ -127,6 +121,21 @@ namespace liboceanlight
 			glfwTerminate();
 		}
 
+		void cleanup_swap_chain()
+		{
+			for (auto framebuffer : swap_chain_frame_buffers)
+			{
+				vkDestroyFramebuffer(logical_device, framebuffer, nullptr);
+			}
+
+			for (auto image_view : swap_chain_image_views)
+			{
+				vkDestroyImageView(logical_device, image_view, nullptr);
+			}
+
+			vkDestroySwapchainKHR(logical_device, swap_chain, nullptr);
+		}
+
 		void init(liboceanlight::window&);
 		VkInstance create_vulkan_instance();
 		void run(liboceanlight::window&);
@@ -136,17 +145,17 @@ namespace liboceanlight
 								VkPhysicalDevice&,
 								VkSurfaceKHR&,
 								const std::vector<const char*>&);
-		VkSwapchainKHR create_swap_chain(liboceanlight::window&,
-										 swap_chain_support_details&);
+		VkSwapchainKHR create_swap_chain(liboceanlight::window&);
+		void recreate_swap_chain(liboceanlight::window&);
 		std::vector<VkImageView> create_image_views();
 		void create_graphics_pipeline();
 		VkShaderModule create_shader_module(const std::vector<char>&);
 		void create_render_pass();
 		void create_framebuffers();
 		void create_command_pool();
-		void create_command_buffer();
+		void create_command_buffers();
 		void record_command_buffer(VkCommandBuffer&, uint32_t);
-		void draw_frame();
+		void draw_frame(liboceanlight::window&);
 		void create_sync_objects();
 	};
 } /* namespace liboceanlight */

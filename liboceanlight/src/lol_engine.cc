@@ -25,45 +25,66 @@ void liboceanlight::engine::run(liboceanlight::window& window)
 	while (!window.should_close())
 	{
 		glfwWaitEvents();
-		draw_frame();
+		draw_frame(window);
 	}
 
 	vkDeviceWaitIdle(logical_device);
+	vkQueueWaitIdle(graphics_queue);
 }
 
-void liboceanlight::engine::draw_frame()
+void liboceanlight::engine::draw_frame(liboceanlight::window& window)
 {
-	vkWaitForFences(logical_device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(logical_device, 1, &in_flight_fence);
+	vkWaitForFences(logical_device,
+					1,
+					&in_flight_fences[current_frame],
+					VK_TRUE,
+					UINT64_MAX);
 
 	uint32_t image_index;
-	vkAcquireNextImageKHR(logical_device,
-						  swap_chain,
-						  UINT64_MAX,
-						  image_available_semaphore,
-						  VK_NULL_HANDLE,
-						  &image_index);
+	VkResult result;
+	result = vkAcquireNextImageKHR(logical_device,
+								   swap_chain,
+								   UINT64_MAX,
+								   image_available_semaphores[current_frame],
+								   VK_NULL_HANDLE,
+								   &image_index);
 
-	vkResetCommandBuffer(command_buffer, 0);
-	record_command_buffer(command_buffer, image_index);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR)
+	{
+		recreate_swap_chain(window);
+		return;
+	}
+	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+	{
+		throw std::runtime_error("Failed to acquire next swap chain image");
+	}
+
+	vkResetFences(logical_device, 1, &in_flight_fences[current_frame]);
+	vkResetCommandBuffer(command_buffers[current_frame], 0);
+	record_command_buffer(command_buffers[current_frame], image_index);
 
 	VkSubmitInfo submit_info {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = {image_available_semaphore};
+	VkSemaphore wait_semaphores[] = {
+		image_available_semaphores[current_frame]};
 	VkPipelineStageFlags wait_stages[] = {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &command_buffer;
+	submit_info.pCommandBuffers = &command_buffers[current_frame];
 
-	VkSemaphore signal_semaphores[] = {rendering_finished_semaphore};
+	VkSemaphore signal_semaphores[] = {
+		rendering_finished_semaphores[current_frame]};
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
 
-	auto rv = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence);
+	auto rv = vkQueueSubmit(graphics_queue,
+							1,
+							&submit_info,
+							in_flight_fences[current_frame]);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -81,7 +102,20 @@ void liboceanlight::engine::draw_frame()
 	present_info.pImageIndices = &image_index;
 	present_info.pResults = nullptr;
 
-	vkQueuePresentKHR(graphics_queue, &present_info);
+	result = vkQueuePresentKHR(graphics_queue, &present_info);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+		window.framebuffer_resized)
+	{
+		window.framebuffer_resized = false;
+		recreate_swap_chain(window);
+	}
+	else if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to present to queue");
+	}
+
+	current_frame = (current_frame + 1) % max_frames_in_flight;
 }
 
 void liboceanlight::engine::init(liboceanlight::window& window)
@@ -123,13 +157,13 @@ void liboceanlight::engine::init(liboceanlight::window& window)
 		throw std::runtime_error("Could not get presentation queue handle.");
 	}
 
-	swap_chain = create_swap_chain(window, swap_details);
+	swap_chain = create_swap_chain(window);
 	swap_chain_image_views = create_image_views();
 	create_render_pass();
 	create_graphics_pipeline();
 	create_framebuffers();
 	create_command_pool();
-	create_command_buffer();
+	create_command_buffers();
 	create_sync_objects();
 }
 
@@ -399,9 +433,27 @@ VkExtent2D liboceanlight::window::choose_swap_extent(
 	}
 }
 
+void liboceanlight::engine::recreate_swap_chain(liboceanlight::window& window)
+{
+	int width {0}, height {0};
+	glfwGetFramebufferSize(window.window_pointer, &width, &height);
+
+	while (width == 0 || height == 0)
+	{
+		glfwGetFramebufferSize(window.window_pointer, &width, &height);
+		glfwWaitEvents();
+	}
+
+	vkDeviceWaitIdle(logical_device);
+	cleanup_swap_chain();
+	swap_details = get_swap_chain_support_details(physical_device, window_surface);
+	swap_chain = create_swap_chain(window);
+	swap_chain_image_views = create_image_views();
+	create_framebuffers();
+}
+
 VkSwapchainKHR liboceanlight::engine::create_swap_chain(
-	liboceanlight::window& window,
-	swap_chain_support_details& details)
+	liboceanlight::window& window)
 {
 	VkSurfaceFormatKHR surface_format = choose_swap_surface_format(
 		swap_details.formats);
@@ -428,6 +480,7 @@ VkSwapchainKHR liboceanlight::engine::create_swap_chain(
 	create_info.imageExtent = swap_chain_extent;
 	create_info.imageArrayLayers = 1;
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	create_info.oldSwapchain = nullptr;
 
 	uint32_t indices[] = {
 		queue_family_indices.graphics_queue_family.value(),
@@ -792,19 +845,22 @@ void liboceanlight::engine::create_command_pool()
 	}
 }
 
-void liboceanlight::engine::create_command_buffer()
+void liboceanlight::engine::create_command_buffers()
 {
+	command_buffers.resize(max_frames_in_flight);
+
 	VkCommandBufferAllocateInfo command_buffer_allocate_create_info {};
 	command_buffer_allocate_create_info.sType =
 		VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	command_buffer_allocate_create_info.commandPool = command_pool;
 	command_buffer_allocate_create_info.level =
 		VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	command_buffer_allocate_create_info.commandBufferCount = 1;
+	command_buffer_allocate_create_info.commandBufferCount =
+		(uint32_t)command_buffers.size();
 
 	auto rv = vkAllocateCommandBuffers(logical_device,
 									   &command_buffer_allocate_create_info,
-									   &command_buffer);
+									   command_buffers.data());
 
 	if (rv != VK_SUCCESS)
 	{
@@ -873,6 +929,10 @@ void liboceanlight::engine::record_command_buffer(
 
 void liboceanlight::engine::create_sync_objects()
 {
+	image_available_semaphores.resize(max_frames_in_flight);
+	rendering_finished_semaphores.resize(max_frames_in_flight);
+	in_flight_fences.resize(max_frames_in_flight);
+
 	VkSemaphoreCreateInfo semaphore_create_info {};
 	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -880,24 +940,28 @@ void liboceanlight::engine::create_sync_objects()
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	auto rv1 = vkCreateSemaphore(logical_device,
-								 &semaphore_create_info,
-								 nullptr,
-								 &image_available_semaphore);
-
-	auto rv2 = vkCreateSemaphore(logical_device,
-								 &semaphore_create_info,
-								 nullptr,
-								 &rendering_finished_semaphore);
-
-	auto rv3 = vkCreateFence(logical_device,
-							 &fence_create_info,
-							 nullptr,
-							 &in_flight_fence);
-
-	if (rv1 != VK_SUCCESS || rv2 != VK_SUCCESS || rv3 != VK_SUCCESS)
+	for (auto i {0}; i < max_frames_in_flight; ++i)
 	{
-		throw std::runtime_error("Failed to create synchronization objects");
+		auto rv1 = vkCreateSemaphore(logical_device,
+									 &semaphore_create_info,
+									 nullptr,
+									 &image_available_semaphores[i]);
+
+		auto rv2 = vkCreateSemaphore(logical_device,
+									 &semaphore_create_info,
+									 nullptr,
+									 &rendering_finished_semaphores[i]);
+
+		auto rv3 = vkCreateFence(logical_device,
+								 &fence_create_info,
+								 nullptr,
+								 &in_flight_fences[i]);
+
+		if (rv1 != VK_SUCCESS || rv2 != VK_SUCCESS || rv3 != VK_SUCCESS)
+		{
+			throw std::runtime_error(
+				"Failed to create synchronization objects");
+		}
 	}
 }
 
