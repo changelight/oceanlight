@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cxxopts.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_version.hpp>
 #include <config.h>
 #include "args.hpp"
 

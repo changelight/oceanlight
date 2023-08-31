@@ -15,10 +15,11 @@ namespace liboceanlight
 		GLFWwindow* window_pointer {nullptr};
 		bool framebuffer_resized {false};
 		window(int w, int h);
+		window(const window& window);
+		const window& operator=(const window&) = delete;
 		~window();
 
 		int should_close();
-		VkSurfaceKHR create_window_surface(VkInstance&);
 		VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	};
 }

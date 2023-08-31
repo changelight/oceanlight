@@ -1,47 +1,38 @@
 #include <iostream>
-#include <vector>
 #include <vulkan/vulkan.h>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <config.h>
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_utils_messenger_callback(
+VKAPI_ATTR VkBool32 VKAPI_CALL liboceanlight::engine::dbg_messenger_callback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 	VkDebugUtilsMessageTypeFlagsEXT type,
 	const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
 	void* user_data)
 {
-	std::cout << callback_data->pMessage << "\n";
-
-	if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-	{
-		throw std::runtime_error(
-			"Vulkan validation layer detected a fatal error");
-	}
+	std::cout << "⦕ VLDN ⦖ " << callback_data->pMessage << "\n";
 
 	return VK_FALSE;
 }
 
-VkDebugUtilsMessengerCreateInfoEXT populate_dbg_utils_msngr_create_info()
+void liboceanlight::engine::set_dbg_messenger_create_info(
+	VkDebugUtilsMessengerCreateInfoEXT& c_info)
 {
-	VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info {};
-	debug_utils_messenger_create_info.sType =
-		VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	debug_utils_messenger_create_info.messageSeverity =
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-	debug_utils_messenger_create_info.messageType =
-		VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-	debug_utils_messenger_create_info.pfnUserCallback =
-		debug_utils_messenger_callback;
-	debug_utils_messenger_create_info.pUserData = nullptr; // Optional
-	return debug_utils_messenger_create_info;
+	c_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+
+	c_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+							 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+							 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+	c_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+						 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+						 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+
+	c_info.pfnUserCallback = dbg_messenger_callback;
+	c_info.pUserData = nullptr; // Optional
 }
 
-VkResult CreateDebugUtilsMessengerEXT(
+VkResult liboceanlight::engine::CreateDebugUtilsMessengerEXT(
 	VkInstance instance,
 	const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
 	const VkAllocationCallbacks* pAllocator,
@@ -61,9 +52,10 @@ VkResult CreateDebugUtilsMessengerEXT(
 	}
 }
 
-void DestroyDebugUtilsMessengerEXT(VkInstance instance,
-								   VkDebugUtilsMessengerEXT debugMessenger,
-								   const VkAllocationCallbacks* pAllocator)
+void liboceanlight::engine::DestroyDebugUtilsMessengerEXT(
+	VkInstance instance,
+	VkDebugUtilsMessengerEXT debugMessenger,
+	const VkAllocationCallbacks* pAllocator)
 {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
 		instance,
