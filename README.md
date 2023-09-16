@@ -20,7 +20,8 @@ On linux, here are some libraries that you probably already have, but are still 
 First, ensure you have the latest Vulkan SDK.
 
 For windows: https://www.lunarg.com/vulkan-sdk/ \
-For linux: ```libvulkan-dev```
+For linux: ```libvulkan-dev``` \
+Also on linux make sure you have the glsl compiler installed: ```apt install glslc```
 
 Configure: \
 ```git clone https://github.com/changelight/oceanlight.git && cd oceanlight && mkdir build && cd build && cmake -G Ninja ..```
