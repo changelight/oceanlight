@@ -10,6 +10,14 @@ namespace liboceanlight
 {
 	window::window(int w, int h) : width(w), height(h)
 	{
+		glfwSetErrorCallback(lol_glfw_error_callback);
+
+		int rv = glfwInit();
+		if (rv != GLFW_TRUE)
+		{
+			throw std::runtime_error("Failed to initialize glfw");
+		}
+
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -32,25 +40,10 @@ namespace liboceanlight
 									   lol_glfw_framebuffer_size_callback);
 	}
 
+	window::window(const window& w) : window(w.width, w.height) {}
 	window::~window()
 	{
 		glfwDestroyWindow(window_pointer);
-	}
-
-	VkSurfaceKHR window::create_window_surface(VkInstance& instance)
-	{
-		VkSurfaceKHR surface {nullptr};
-		VkResult rv = glfwCreateWindowSurface(instance,
-											  window_pointer,
-											  nullptr,
-											  &surface);
-
-		if (rv != VK_SUCCESS)
-		{
-			throw std::runtime_error("Could not create window surface.");
-		}
-
-		return surface;
 	}
 
 	int window::should_close()
