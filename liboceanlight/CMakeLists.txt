@@ -1,9 +1,9 @@
 project(liboceanlight VERSION 0.0.1 LANGUAGES CXX)
 configure_file(config.h.in config.h)
 include(CTest)
-add_library(liboceanlight STATIC 
-            src/lol_version.cc src/lol_engine.cc src/lol_window.cc
-            src/lol_debug_messenger.cc src/lol_glfw_callbacks.cc src/lol_utility.cc)
+add_library(liboceanlight STATIC
+            src/lol_version.cc src/lol_engine_init.cc src/lol_window.cc src/lol_engine.cc src/lol_engine_shutdown.cc
+            src/lol_debug_messenger.cc src/lol_glfw_callbacks.cc src/lol_utility.cc src/lol_version.cc)
 set_target_properties(liboceanlight PROPERTIES CMAKE_CXX_VISIBILITY_PRESET hidden CMAKE_VISIBILITY_INLINES_HIDDEN yes)
 target_compile_definitions(liboceanlight PRIVATE $<$<CONFIG:Debug>:DEBUG_BUILD>)
 
@@ -32,6 +32,9 @@ FetchContent_Declare(
     GIT_TAG origin/main)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
+target_compile_options(gtest PRIVATE "-Wno-language-extension-token")
+target_compile_definitions(gtest PUBLIC GTEST_LINKED_AS_SHARED_LIBRARY=0)
+target_compile_definitions(gtest PUBLIC GTEST_CREATE_SHARED_LIBRARY=0)
 
 find_package(Vulkan REQUIRED)
 

@@ -2,9 +2,9 @@
 BasedOnStyle: LLVM
 AccessModifierOffset: '0'
 AlignAfterOpenBracket: Align
-AlignConsecutiveMacros: 'true'
 AlignConsecutiveAssignments: 'false'
 AlignConsecutiveDeclarations: 'false'
+AlignConsecutiveMacros: 'true'
 AlignEscapedNewlines: Left
 AlignOperands: 'true'
 AlignTrailingComments: 'true'
@@ -13,7 +13,7 @@ AllowAllConstructorInitializersOnNextLine: 'false'
 AllowAllParametersOfDeclarationOnNextLine: 'false'
 AllowShortBlocksOnASingleLine: 'false'
 AllowShortCaseLabelsOnASingleLine: 'false'
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: 'Inline'
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLambdasOnASingleLine: Inline
 AllowShortLoopsOnASingleLine: 'false'
@@ -40,11 +40,12 @@ ExperimentalAutoDetectBinPacking: 'false'
 FixNamespaceComments: 'false'
 IncludeBlocks: Merge
 IndentCaseLabels: 'true'
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: None
 IndentWidth: '4'
 TabWidth: '4'
 IndentWrappedFunctionNames: 'false'
 KeepEmptyLinesAtTheStartOfBlocks: 'false'
+InsertNewlineAtEOF: true
 Language: Cpp
 NamespaceIndentation: All
 PenaltyBreakAssignment: '100'
@@ -72,5 +73,6 @@ SpacesInParentheses: 'false'
 SpacesInSquareBrackets: 'false'
 Standard: Cpp11
 UseTab: Always
+LineEnding: LF
 
 ...

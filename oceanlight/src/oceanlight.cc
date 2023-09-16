@@ -1,10 +1,10 @@
 #include <iostream>
-#include <vector>
 #include <exception>
 #include <config.h>
-#include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_window.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
+#include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_engine_shutdown.hpp>
 #include "args.hpp"
 
 int main(int argc, char** argv)
@@ -19,21 +19,22 @@ int main(int argc, char** argv)
 			return EXIT_SUCCESS;
 		}
 
-		static liboceanlight::engine engine;
 		liboceanlight::window window(args.width, args.height);
-		engine.init(window);
-		engine.run(window);
+		liboceanlight::engine::engine_data engine_data;
+		liboceanlight::engine::start(window, engine_data);
+		liboceanlight::engine::shutdown(engine_data);
 	}
 
 	catch (const std::exception& e)
 	{
 		std::cerr << e.what() << std::endl;
+		return EXIT_FAILURE;
 	}
 
 	catch (...)
 	{
 		std::cerr << "Error: unknown error" << std::endl;
-		throw;
+		return EXIT_FAILURE;
 	}
 
 	return EXIT_SUCCESS;
