@@ -13,7 +13,7 @@ namespace liboceanlight
 		glfwSetErrorCallback(lol_glfw_error_callback);
 
 		int rv = glfwInit();
-		if (!rv)
+		if (rv != GLFW_TRUE)
 		{
 			throw std::runtime_error("Failed to initialize glfw");
 		}
@@ -41,7 +41,6 @@ namespace liboceanlight
 	}
 
 	window::window(const window& w) : window(w.width, w.height) {}
-
 	window::~window()
 	{
 		glfwDestroyWindow(window_pointer);

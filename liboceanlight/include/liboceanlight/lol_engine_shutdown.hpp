@@ -13,6 +13,10 @@ namespace liboceanlight
 		void cleanup_logical_device(engine_data&);
 		void cleanup_surface(engine_data&);
 		void cleanup_swapchain(engine_data&);
+		void cleanup_vertex_buffer(engine_data&);
+		void cleanup_index_buffer(engine_data&);
+		void cleanup_uniform_buffers(engine_data&);
+		void cleanup_descriptor_pool(engine_data&);
 		void cleanup_pipeline(engine_data&);
 		void cleanup_commands(engine_data&);
 		void cleanup_semaphores(engine_data&);

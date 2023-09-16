@@ -15,12 +15,12 @@ namespace liboceanlight
 		GLFWwindow* window_pointer {nullptr};
 		bool framebuffer_resized {false};
 		window(int w, int h);
-		window(const window& window);
+		window(const window&);
 		const window& operator=(const window&) = delete;
 		~window();
 
 		int should_close();
 		VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	};
-}
+} /* namespace liboceanlight */
 #endif /* LIBOCEANLIGHT_WINDOW_HPP_INCLUDED */

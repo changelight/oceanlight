@@ -1,7 +1,11 @@
 #include <stdexcept>
 #include <vector>
+#include <chrono>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#define GLM_FORCE_RADIANS
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
@@ -24,12 +28,21 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 {
 	while (!window.should_close())
 	{
-		glfwWaitEvents();
+		glfwPollEvents();
 		draw_frame(window, eng_data);
 	}
 
 	vkDeviceWaitIdle(eng_data.logical_device);
 }
+
+/* struct of arrays
+struct vertices2
+{
+	const std::array<glm::vec2, 3> positions {
+		{{0.0f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}}};
+	const std::array<glm::vec3, 3> colors {
+		{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+};*/
 
 void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 									   engine_data& eng_data)
@@ -67,6 +80,8 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	record_cmd_buffer(eng_data,
 					  eng_data.command_buffers[eng_data.current_frame],
 					  image_index);
+
+	update_uniform_buffer(eng_data, eng_data.current_frame);
 
 	VkSubmitInfo submit_info {};
 	VkSemaphore signal_sems[] {eng_data.signal_sems[eng_data.current_frame]};
@@ -151,10 +166,26 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	pass_info.pClearValues = &clear_color;
 
 	vkCmdBeginRenderPass(cmd_buffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
 	vkCmdBindPipeline(cmd_buffer,
 					  VK_PIPELINE_BIND_POINT_GRAPHICS,
 					  eng_data.graphics_pipeline);
+
+	VkBuffer vertex_buffers[] = {eng_data.vertex_buffer};
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(cmd_buffer, 0, 1, vertex_buffers, offsets);
+	vkCmdBindIndexBuffer(cmd_buffer,
+						 eng_data.index_buffer,
+						 0,
+						 VK_INDEX_TYPE_UINT16);
+
+	vkCmdBindDescriptorSets(cmd_buffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,
+							eng_data.pipeline_layout,
+							0,
+							1,
+							&eng_data.descriptor_sets[eng_data.current_frame],
+							0,
+							nullptr);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;
@@ -170,7 +201,12 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	scissor.extent = eng_data.swap_extent;
 	vkCmdSetScissor(cmd_buffer, 0, 1, &scissor);
 
-	vkCmdDraw(cmd_buffer, 3, 1, 0, 0);
+	vkCmdDrawIndexed(cmd_buffer,
+					 static_cast<uint32_t>(indices.size()),
+					 1,
+					 0,
+					 0,
+					 0);
 	vkCmdEndRenderPass(cmd_buffer);
 
 	rv = vkEndCommandBuffer(cmd_buffer);
@@ -179,6 +215,80 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	{
 		throw std::runtime_error("Failed to record command buffer");
 	}
+}
+
+void liboceanlight::engine::update_uniform_buffer(engine_data& eng_data,
+												  uint32_t current_image)
+{
+	static auto start_time {std::chrono::high_resolution_clock::now()};
+
+	auto current_time {std::chrono::high_resolution_clock::now()};
+	float time {std::chrono::duration<float, std::chrono::seconds::period>(
+					current_time - start_time)
+					.count()};
+
+	uniform_buffer_object ubo {};
+	ubo.model = glm::rotate(glm::mat4(1.0f),
+							time * glm::radians(90.0f),
+							glm::vec3(0.0f, 0.0f, 1.0f));
+
+	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
+						   glm::vec3(0.0f, 0.0f, 0.0f),
+						   glm::vec3(0.0f, 0.0f, 1.0f));
+
+	ubo.proj = glm::perspective(
+		glm::radians(45.0f),
+		eng_data.swap_extent.width / (float)eng_data.swap_extent.height,
+		1.0f,
+		10.0f);
+
+	ubo.proj[1][1] *= -1;
+
+	memcpy(eng_data.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+}
+
+void liboceanlight::engine::upload_buffer(engine_data& eng_data,
+										  void* buff,
+										  VkDeviceSize buff_size,
+										  VkBufferUsageFlagBits usage,
+										  VkBuffer& dst,
+										  VkDeviceMemory& dst_mem)
+{
+	if ((!buff) | (buff_size == 0))
+	{
+		throw std::runtime_error("Invalid buffer to be uploaded");
+	}
+
+	VkBuffer staging_buff {nullptr};
+	VkDeviceMemory staging_buff_mem {nullptr};
+	create_buffer(eng_data,
+				  buff_size,
+				  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+					  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				  staging_buff,
+				  staging_buff_mem);
+
+	void* data;
+	vkMapMemory(eng_data.logical_device,
+				staging_buff_mem,
+				0,
+				buff_size,
+				0,
+				&data);
+	memcpy(data, buff, (size_t)buff_size);
+	vkUnmapMemory(eng_data.logical_device, staging_buff_mem);
+
+	create_buffer(eng_data,
+				  buff_size,
+				  VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
+				  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				  dst,
+				  dst_mem);
+	copy_buffer(eng_data, staging_buff, dst, buff_size);
+
+	vkDestroyBuffer(eng_data.logical_device, staging_buff, nullptr);
+	vkFreeMemory(eng_data.logical_device, staging_buff_mem, nullptr);
 }
 
 void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,

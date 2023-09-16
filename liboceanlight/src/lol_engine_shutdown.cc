@@ -17,6 +17,10 @@ void liboceanlight::engine::deinitialize(engine_data& eng_data)
 	cleanup_commands(eng_data);
 	cleanup_pipeline(eng_data);
 	cleanup_swapchain(eng_data);
+	cleanup_descriptor_pool(eng_data);
+	cleanup_vertex_buffer(eng_data);
+	cleanup_index_buffer(eng_data);
+	cleanup_uniform_buffers(eng_data);
 	cleanup_surface(eng_data);
 	cleanup_logical_device(eng_data);
 	cleanup_debug_messenger(eng_data);
@@ -110,6 +114,74 @@ void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 		vkDestroySwapchainKHR(eng_data.logical_device,
 							  eng_data.swap_chain,
 							  nullptr);
+	}
+}
+
+void liboceanlight::engine::cleanup_descriptor_pool(engine_data& eng_data)
+{
+	if (eng_data.descriptor_pool)
+	{
+		vkDestroyDescriptorPool(eng_data.logical_device,
+								eng_data.descriptor_pool,
+								nullptr);
+	}
+
+	if (eng_data.descriptor_set_layout)
+	{
+		vkDestroyDescriptorSetLayout(eng_data.logical_device,
+									 eng_data.descriptor_set_layout,
+									 nullptr);
+	}
+}
+
+void liboceanlight::engine::cleanup_uniform_buffers(engine_data& eng_data)
+{
+	if (!eng_data.uniform_buffers.empty())
+	{
+		for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
+		{
+			vkDestroyBuffer(eng_data.logical_device,
+							eng_data.uniform_buffers[i],
+							nullptr);
+
+			vkFreeMemory(eng_data.logical_device,
+						 eng_data.uniform_buffers_mem[i],
+						 nullptr);
+		}
+	}
+}
+
+void liboceanlight::engine::cleanup_vertex_buffer(engine_data& eng_data)
+{
+	if (eng_data.vertex_buffer)
+	{
+		vkDestroyBuffer(eng_data.logical_device,
+						eng_data.vertex_buffer,
+						nullptr);
+	}
+
+	if (eng_data.vertex_buffer_mem)
+	{
+		vkFreeMemory(eng_data.logical_device,
+					 eng_data.vertex_buffer_mem,
+					 nullptr);
+	}
+}
+
+void liboceanlight::engine::cleanup_index_buffer(engine_data& eng_data)
+{
+	if (eng_data.index_buffer)
+	{
+		vkDestroyBuffer(eng_data.logical_device,
+						eng_data.index_buffer,
+						nullptr);
+	}
+
+	if (eng_data.index_buffer_mem)
+	{
+		vkFreeMemory(eng_data.logical_device,
+					 eng_data.index_buffer_mem,
+					 nullptr);
 	}
 }
 

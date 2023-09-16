@@ -45,6 +45,7 @@ namespace liboceanlight
 
 		/* PIPELINE */
 		void create_render_pass(engine_data&);
+		void create_descriptor_set_layout(engine_data&);
 		void create_pipeline(engine_data&);
 		VkShaderModule create_shader(engine_data&, const std::vector<char>&);
 		void create_framebuffers(engine_data&);
@@ -54,6 +55,26 @@ namespace liboceanlight
 		void create_cmd_pool(engine_data&);
 		void create_cmd_buffer(engine_data&);
 
+		/* VERTEX BUFFER */
+		void create_vertex_buffer(engine_data&);
+		uint32_t find_mem_type(engine_data&, uint32_t, VkMemoryPropertyFlags);
+		void create_buffer(engine_data&,
+						   VkDeviceSize,
+						   VkBufferUsageFlags,
+						   VkMemoryPropertyFlags,
+						   VkBuffer&,
+						   VkDeviceMemory&);
+		void copy_buffer(engine_data&, VkBuffer, VkBuffer, VkDeviceSize);
+
+		/* INDEX BUFFER */
+		void create_index_buffer(engine_data&);
+
+		/* UNIFORM BUFFER */
+		void create_uniform_buffers(engine_data&);
+
+		/* DESCRIPTOR */
+		void create_descriptor_pool(engine_data&);
+		void create_descriptor_sets(engine_data&);
 	} /* namespace engine */
 } /* namespace liboceanlight */
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

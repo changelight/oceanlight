@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <format>
 #include <liboceanlight/lol_engine_init.hpp>
+#include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
@@ -25,10 +26,16 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_image_views(eng_data);
 
 	create_render_pass(eng_data);
+	create_descriptor_set_layout(eng_data);
 	create_pipeline(eng_data);
 	create_framebuffers(eng_data);
 
 	create_cmd_pool(eng_data);
+	create_vertex_buffer(eng_data);
+	create_index_buffer(eng_data);
+	create_uniform_buffers(eng_data);
+	create_descriptor_pool(eng_data);
+	create_descriptor_sets(eng_data);
 	create_cmd_buffer(eng_data);
 	create_sync_objects(eng_data);
 
@@ -454,6 +461,32 @@ void liboceanlight::engine::create_render_pass(engine_data& eng_data)
 	}
 }
 
+void liboceanlight::engine::create_descriptor_set_layout(engine_data& eng_data)
+{
+	VkDescriptorSetLayoutBinding ubo_layout_binding {};
+	ubo_layout_binding.binding = 0;
+	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	ubo_layout_binding.descriptorCount = 1;
+	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	ubo_layout_binding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutCreateInfo layout_info {};
+	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layout_info.bindingCount = 1;
+	layout_info.pBindings = &ubo_layout_binding;
+
+	VkResult rv;
+	rv = vkCreateDescriptorSetLayout(eng_data.logical_device,
+									 &layout_info,
+									 nullptr,
+									 &eng_data.descriptor_set_layout);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+}
+
 void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 {
 	auto vs_code = read_file(SHADER_PATH "vertex_shader.spv");
@@ -475,14 +508,17 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	fs_info.pName = "main";
 
 	VkPipelineShaderStageCreateInfo shader_stages[] = {vs_info, fs_info};
+	auto binding_desc = vertex::get_binding_desc();
+	auto attribute_descs = vertex::get_attribute_descs();
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_info {};
 	vertex_input_info.sType =
 		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertex_input_info.vertexBindingDescriptionCount = 0;
-	vertex_input_info.pVertexBindingDescriptions = nullptr;
-	vertex_input_info.vertexAttributeDescriptionCount = 0;
-	vertex_input_info.pVertexAttributeDescriptions = nullptr;
+	vertex_input_info.vertexBindingDescriptionCount = 1;
+	vertex_input_info.pVertexBindingDescriptions = &binding_desc;
+	vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(
+		attribute_descs.size());
+	vertex_input_info.pVertexAttributeDescriptions = attribute_descs.data();
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_info {};
 	input_assembly_info.sType =
@@ -524,7 +560,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	rasterizer_info.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer_info.lineWidth = 1.0f;
 	rasterizer_info.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer_info.depthBiasEnable = VK_FALSE;
 	rasterizer_info.depthBiasConstantFactor = 0.0f;
 	rasterizer_info.depthBiasClamp = 0.0f;
@@ -566,8 +602,8 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount = 0;
-	pipeline_layout_info.pSetLayouts = nullptr;
+	pipeline_layout_info.setLayoutCount = 1;
+	pipeline_layout_info.pSetLayouts = &eng_data.descriptor_set_layout;
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 
@@ -663,6 +699,227 @@ void liboceanlight::engine::create_cmd_pool(engine_data& eng_data)
 	{
 		throw std::runtime_error("Failed to create command pool");
 	}
+}
+
+void liboceanlight::engine::create_vertex_buffer(engine_data& eng_data)
+{
+	upload_buffer(eng_data,
+				  vertices.data(),
+				  sizeof(vertices[0]) * vertices.size(),
+				  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+				  eng_data.vertex_buffer,
+				  eng_data.vertex_buffer_mem);
+}
+
+void liboceanlight::engine::create_index_buffer(engine_data& eng_data)
+{
+	upload_buffer(eng_data,
+				  indices.data(),
+				  sizeof(indices[0]) * indices.size(),
+				  VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+				  eng_data.index_buffer,
+				  eng_data.index_buffer_mem);
+}
+
+void liboceanlight::engine::create_uniform_buffers(engine_data& eng_data)
+{
+	VkDeviceSize buff_size {sizeof(uniform_buffer_object)};
+
+	for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
+	{
+		create_buffer(eng_data,
+					  buff_size,
+					  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+					  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+						  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+					  eng_data.uniform_buffers[i],
+					  eng_data.uniform_buffers_mem[i]);
+
+		vkMapMemory(eng_data.logical_device,
+					eng_data.uniform_buffers_mem[i],
+					0,
+					buff_size,
+					0,
+					&eng_data.uniform_buffers_mapped[i]);
+	}
+}
+
+void liboceanlight::engine::create_descriptor_pool(engine_data& eng_data)
+{
+	VkDescriptorPoolSize pool_size {};
+	pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	pool_size.descriptorCount = static_cast<uint32_t>(
+		eng_data.max_frames_in_flight);
+
+	VkDescriptorPoolCreateInfo pool_info {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.poolSizeCount = 1;
+	pool_info.pPoolSizes = &pool_size;
+	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
+
+	VkResult rv;
+	rv = vkCreateDescriptorPool(eng_data.logical_device,
+								&pool_info,
+								nullptr,
+								&eng_data.descriptor_pool);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create descriptor pool");
+	}
+}
+
+void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
+{
+	std::vector<VkDescriptorSetLayout> layouts(eng_data.max_frames_in_flight,
+											   eng_data.descriptor_set_layout);
+
+	VkDescriptorSetAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	alloc_info.descriptorPool = eng_data.descriptor_pool;
+	alloc_info.descriptorSetCount = static_cast<uint32_t>(
+		eng_data.max_frames_in_flight);
+	alloc_info.pSetLayouts = layouts.data();
+
+	VkResult rv;
+	rv = vkAllocateDescriptorSets(eng_data.logical_device,
+								  &alloc_info,
+								  eng_data.descriptor_sets.data());
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate descriptor sets");
+	}
+
+	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
+	{
+		VkDescriptorBufferInfo buff_info {};
+		buff_info.buffer = eng_data.uniform_buffers[i];
+		buff_info.offset = 0;
+		buff_info.range = sizeof(uniform_buffer_object);
+
+		VkWriteDescriptorSet descriptor_write {};
+		descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptor_write.dstSet = eng_data.descriptor_sets[i];
+		descriptor_write.dstBinding = 0;
+		descriptor_write.dstArrayElement = 0;
+		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptor_write.descriptorCount = 1;
+		descriptor_write.pBufferInfo = &buff_info;
+
+		vkUpdateDescriptorSets(eng_data.logical_device,
+							   1,
+							   &descriptor_write,
+							   0,
+							   nullptr);
+	}
+}
+
+void liboceanlight::engine::create_buffer(engine_data& eng_data,
+										  VkDeviceSize size,
+										  VkBufferUsageFlags usage,
+										  VkMemoryPropertyFlags props,
+										  VkBuffer& buff,
+										  VkDeviceMemory& buff_mem)
+{
+	VkBufferCreateInfo buffer_info {};
+	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_info.size = size;
+	buffer_info.usage = usage;
+	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult rv;
+	rv = vkCreateBuffer(eng_data.logical_device, &buffer_info, nullptr, &buff);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create vertex buffer");
+	}
+
+	VkMemoryRequirements mem_reqs;
+	vkGetBufferMemoryRequirements(eng_data.logical_device, buff, &mem_reqs);
+
+	uint32_t type_index = find_mem_type(eng_data,
+										mem_reqs.memoryTypeBits,
+										props);
+
+	VkMemoryAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	alloc_info.allocationSize = mem_reqs.size;
+	alloc_info.memoryTypeIndex = type_index;
+
+	rv = vkAllocateMemory(eng_data.logical_device,
+						  &alloc_info,
+						  nullptr,
+						  &buff_mem);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate vertex buffer memory");
+	}
+
+	vkBindBufferMemory(eng_data.logical_device, buff, buff_mem, 0);
+}
+
+void liboceanlight::engine::copy_buffer(engine_data& eng_data,
+										VkBuffer src,
+										VkBuffer dst,
+										VkDeviceSize size)
+{
+	VkCommandBufferAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandPool = eng_data.command_pool;
+	alloc_info.commandBufferCount = 1;
+
+	VkCommandBuffer cmd_buffer;
+	vkAllocateCommandBuffers(eng_data.logical_device,
+							 &alloc_info,
+							 &cmd_buffer);
+
+	VkCommandBufferBeginInfo begin_info {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(cmd_buffer, &begin_info);
+	VkBufferCopy copy_region {};
+	copy_region.srcOffset = 0;
+	copy_region.dstOffset = 0;
+	copy_region.size = size;
+	vkCmdCopyBuffer(cmd_buffer, src, dst, 1, &copy_region);
+	vkEndCommandBuffer(cmd_buffer);
+
+	VkSubmitInfo submit_info {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &cmd_buffer;
+
+	vkQueueSubmit(eng_data.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(eng_data.graphics_queue);
+	vkFreeCommandBuffers(eng_data.logical_device,
+						 eng_data.command_pool,
+						 1,
+						 &cmd_buffer);
+}
+
+uint32_t liboceanlight::engine::find_mem_type(engine_data& eng_data,
+											  uint32_t type_filter,
+											  VkMemoryPropertyFlags prop_flags)
+{
+	VkPhysicalDeviceMemoryProperties mem_props;
+	vkGetPhysicalDeviceMemoryProperties(eng_data.physical_device, &mem_props);
+
+	for (uint32_t i {0}; i < mem_props.memoryTypeCount; ++i)
+	{
+		if ((type_filter & (1 << i)) &&
+			(mem_props.memoryTypes[i].propertyFlags & prop_flags) ==
+				prop_flags)
+		{
+			return i;
+		}
+	}
+
+	throw std::runtime_error("Couldn't find suitable memory type");
 }
 
 void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
