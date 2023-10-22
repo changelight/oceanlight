@@ -1,7 +1,9 @@
+#include <gsl/gsl>
 #include <vector>
 #include <array>
 #include <algorithm>
 #include <format>
+#include <span>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
@@ -103,8 +105,9 @@ void liboceanlight::engine::create_instance(engine_data& eng_data)
 void liboceanlight::engine::create_physical_device(engine_data& eng_data)
 {
 	uint32_t count {0};
-	VkResult rv;
-	rv = vkEnumeratePhysicalDevices(eng_data.vulkan_instance, &count, nullptr);
+	VkResult rv = vkEnumeratePhysicalDevices(eng_data.vulkan_instance,
+											 &count,
+											 nullptr);
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to enumerate physical device count");
@@ -130,11 +133,10 @@ void liboceanlight::engine::create_physical_device(engine_data& eng_data)
 
 void liboceanlight::engine::create_surface(window& w, engine_data& eng_data)
 {
-	VkResult rv;
-	rv = glfwCreateWindowSurface(eng_data.vulkan_instance,
-								 w.window_pointer,
-								 nullptr,
-								 &eng_data.window_surface);
+	VkResult rv = glfwCreateWindowSurface(eng_data.vulkan_instance,
+										  w.window_pointer,
+										  nullptr,
+										  &eng_data.window_surface);
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create surface");
@@ -225,10 +227,10 @@ void liboceanlight::engine::get_swapchain_details(
 	liboceanlight::window& window,
 	engine_data& eng_data)
 {
-	VkResult rv;
-	rv = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(eng_data.physical_device,
-												   eng_data.window_surface,
-												   &eng_data.capabilities);
+	VkResult rv = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+		eng_data.physical_device,
+		eng_data.window_surface,
+		&eng_data.capabilities);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -242,11 +244,11 @@ void liboceanlight::engine::get_swapchain_details(
 	}
 	else
 	{
-		int width, height;
+		int width {}, height {};
 		glfwGetFramebufferSize(window.window_pointer, &width, &height);
 
-		VkExtent2D actual_extent = {static_cast<uint32_t>(width),
-									static_cast<uint32_t>(height)};
+		VkExtent2D actual_extent {static_cast<uint32_t>(width),
+								  static_cast<uint32_t>(height)};
 
 		actual_extent.width = std::clamp(
 			actual_extent.width,
@@ -261,7 +263,7 @@ void liboceanlight::engine::get_swapchain_details(
 		eng_data.swap_extent = actual_extent;
 	}
 
-	uint32_t count;
+	uint32_t count {};
 	vkGetPhysicalDeviceSurfaceFormatsKHR(eng_data.physical_device,
 										 eng_data.window_surface,
 										 &count,
@@ -449,11 +451,10 @@ void liboceanlight::engine::create_render_pass(engine_data& eng_data)
 	render_pass_info.dependencyCount = 1;
 	render_pass_info.pDependencies = &subpass_dep;
 
-	VkResult rv;
-	rv = vkCreateRenderPass(eng_data.logical_device,
-							&render_pass_info,
-							nullptr,
-							&eng_data.render_pass);
+	VkResult rv = vkCreateRenderPass(eng_data.logical_device,
+									 &render_pass_info,
+									 nullptr,
+									 &eng_data.render_pass);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -475,11 +476,10 @@ void liboceanlight::engine::create_descriptor_set_layout(engine_data& eng_data)
 	layout_info.bindingCount = 1;
 	layout_info.pBindings = &ubo_layout_binding;
 
-	VkResult rv;
-	rv = vkCreateDescriptorSetLayout(eng_data.logical_device,
-									 &layout_info,
-									 nullptr,
-									 &eng_data.descriptor_set_layout);
+	VkResult rv = vkCreateDescriptorSetLayout(eng_data.logical_device,
+											  &layout_info,
+											  nullptr,
+											  &eng_data.descriptor_set_layout);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -507,7 +507,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	fs_info.module = fs;
 	fs_info.pName = "main";
 
-	VkPipelineShaderStageCreateInfo shader_stages[] = {vs_info, fs_info};
+	std::array shader_stages {vs_info, fs_info};
 	auto binding_desc = vertex::get_binding_desc();
 	auto attribute_descs = vertex::get_attribute_descs();
 
@@ -620,7 +620,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	VkGraphicsPipelineCreateInfo pipeline_info {};
 	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipeline_info.stageCount = 2;
-	pipeline_info.pStages = shader_stages;
+	pipeline_info.pStages = shader_stages.data();
 	pipeline_info.pVertexInputState = &vertex_input_info;
 	pipeline_info.pInputAssemblyState = &input_assembly_info;
 	pipeline_info.pViewportState = &viewport_info;
@@ -664,11 +664,11 @@ void liboceanlight::engine::create_framebuffers(engine_data& eng_data)
 	c_info.height = eng_data.swap_extent.height;
 	c_info.layers = 1;
 
-	VkResult rv;
+	VkResult rv {};
 	for (size_t i {0}; i < n; ++i)
 	{
-		VkImageView attachments[] {eng_data.image_views[i]};
-		c_info.pAttachments = attachments;
+		std::array attachments {eng_data.image_views[i]};
+		c_info.pAttachments = attachments.data();
 
 		rv = vkCreateFramebuffer(eng_data.logical_device,
 								 &c_info,
@@ -689,11 +689,10 @@ void liboceanlight::engine::create_cmd_pool(engine_data& eng_data)
 	c_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	c_info.queueFamilyIndex = eng_data.graphics_queue_index;
 
-	VkResult rv;
-	rv = vkCreateCommandPool(eng_data.logical_device,
-							 &c_info,
-							 nullptr,
-							 &eng_data.command_pool);
+	VkResult rv = vkCreateCommandPool(eng_data.logical_device,
+									  &c_info,
+									  nullptr,
+									  &eng_data.command_pool);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -725,22 +724,22 @@ void liboceanlight::engine::create_uniform_buffers(engine_data& eng_data)
 {
 	VkDeviceSize buff_size {sizeof(uniform_buffer_object)};
 
-	for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
+	for (auto i {0}; i < eng_data.max_frames_in_flight; ++i)
 	{
 		create_buffer(eng_data,
 					  buff_size,
 					  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 					  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
 						  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-					  eng_data.uniform_buffers[i],
-					  eng_data.uniform_buffers_mem[i]);
+					  gsl::at(eng_data.uniform_buffers, i),
+					  gsl::at(eng_data.uniform_buffers_mem, i));
 
 		vkMapMemory(eng_data.logical_device,
-					eng_data.uniform_buffers_mem[i],
+					gsl::at(eng_data.uniform_buffers_mem, i),
 					0,
 					buff_size,
 					0,
-					&eng_data.uniform_buffers_mapped[i]);
+					&gsl::at(eng_data.uniform_buffers_mapped, i));
 	}
 }
 
@@ -757,11 +756,10 @@ void liboceanlight::engine::create_descriptor_pool(engine_data& eng_data)
 	pool_info.pPoolSizes = &pool_size;
 	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
 
-	VkResult rv;
-	rv = vkCreateDescriptorPool(eng_data.logical_device,
-								&pool_info,
-								nullptr,
-								&eng_data.descriptor_pool);
+	VkResult rv = vkCreateDescriptorPool(eng_data.logical_device,
+										 &pool_info,
+										 nullptr,
+										 &eng_data.descriptor_pool);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -781,10 +779,9 @@ void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
 		eng_data.max_frames_in_flight);
 	alloc_info.pSetLayouts = layouts.data();
 
-	VkResult rv;
-	rv = vkAllocateDescriptorSets(eng_data.logical_device,
-								  &alloc_info,
-								  eng_data.descriptor_sets.data());
+	VkResult rv = vkAllocateDescriptorSets(eng_data.logical_device,
+										   &alloc_info,
+										   eng_data.descriptor_sets.data());
 
 	if (rv != VK_SUCCESS)
 	{
@@ -794,13 +791,13 @@ void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
 	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
 	{
 		VkDescriptorBufferInfo buff_info {};
-		buff_info.buffer = eng_data.uniform_buffers[i];
+		buff_info.buffer = gsl::at(eng_data.uniform_buffers, i);
 		buff_info.offset = 0;
 		buff_info.range = sizeof(uniform_buffer_object);
 
 		VkWriteDescriptorSet descriptor_write {};
 		descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptor_write.dstSet = eng_data.descriptor_sets[i];
+		descriptor_write.dstSet = gsl::at(eng_data.descriptor_sets, i);
 		descriptor_write.dstBinding = 0;
 		descriptor_write.dstArrayElement = 0;
 		descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -822,14 +819,16 @@ void liboceanlight::engine::create_buffer(engine_data& eng_data,
 										  VkBuffer& buff,
 										  VkDeviceMemory& buff_mem)
 {
-	VkBufferCreateInfo buffer_info {};
-	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_info.size = size;
-	buffer_info.usage = usage;
-	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	VkBufferCreateInfo buff_info {};
+	buff_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buff_info.size = size;
+	buff_info.usage = usage;
+	buff_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	VkResult rv;
-	rv = vkCreateBuffer(eng_data.logical_device, &buffer_info, nullptr, &buff);
+	VkResult rv = vkCreateBuffer(eng_data.logical_device,
+								 &buff_info,
+								 nullptr,
+								 &buff);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -872,7 +871,7 @@ void liboceanlight::engine::copy_buffer(engine_data& eng_data,
 	alloc_info.commandPool = eng_data.command_pool;
 	alloc_info.commandBufferCount = 1;
 
-	VkCommandBuffer cmd_buffer;
+	VkCommandBuffer cmd_buffer {};
 	vkAllocateCommandBuffers(eng_data.logical_device,
 							 &alloc_info,
 							 &cmd_buffer);
@@ -904,7 +903,7 @@ void liboceanlight::engine::copy_buffer(engine_data& eng_data,
 
 uint32_t liboceanlight::engine::find_mem_type(engine_data& eng_data,
 											  uint32_t type_filter,
-											  VkMemoryPropertyFlags prop_flags)
+											  VkMemoryPropertyFlags flags)
 {
 	VkPhysicalDeviceMemoryProperties mem_props;
 	vkGetPhysicalDeviceMemoryProperties(eng_data.physical_device, &mem_props);
@@ -912,8 +911,7 @@ uint32_t liboceanlight::engine::find_mem_type(engine_data& eng_data,
 	for (uint32_t i {0}; i < mem_props.memoryTypeCount; ++i)
 	{
 		if ((type_filter & (1 << i)) &&
-			(mem_props.memoryTypes[i].propertyFlags & prop_flags) ==
-				prop_flags)
+			(gsl::at(mem_props.memoryTypes, i).propertyFlags & flags) == flags)
 		{
 			return i;
 		}
@@ -930,10 +928,9 @@ void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	alloc_info.commandBufferCount = (uint32_t)eng_data.max_frames_in_flight;
 
-	VkResult rv;
-	rv = vkAllocateCommandBuffers(eng_data.logical_device,
-								  &alloc_info,
-								  eng_data.command_buffers.data());
+	VkResult rv = vkAllocateCommandBuffers(eng_data.logical_device,
+										   &alloc_info,
+										   eng_data.command_buffers.data());
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate command buffer");
@@ -949,13 +946,13 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 	fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	VkResult rv;
-	for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
+	VkResult rv {};
+	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
 	{
 		rv = vkCreateSemaphore(eng_data.logical_device,
 							   &sem_info,
 							   nullptr,
-							   &eng_data.signal_sems[i]);
+							   &gsl::at(eng_data.signal_sems, i));
 
 		if (rv != VK_SUCCESS)
 		{
@@ -965,7 +962,7 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 		rv = vkCreateSemaphore(eng_data.logical_device,
 							   &sem_info,
 							   nullptr,
-							   &eng_data.wait_sems[i]);
+							   &gsl::at(eng_data.wait_sems, i));
 
 		if (rv != VK_SUCCESS)
 		{
@@ -975,7 +972,7 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 		rv = vkCreateFence(eng_data.logical_device,
 						   &fence_info,
 						   nullptr,
-						   &eng_data.in_flight_fences[i]);
+						   &gsl::at(eng_data.in_flight_fences, i));
 
 		if (rv != VK_SUCCESS)
 		{
@@ -991,9 +988,9 @@ VkShaderModule liboceanlight::engine::create_shader(
 	VkShaderModuleCreateInfo create_info {};
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	create_info.codeSize = shader_code.size();
-	create_info.pCode = reinterpret_cast<const uint32_t*>(shader_code.data());
+	create_info.pCode = static_cast<const uint32_t*>(static_cast<const void*>(shader_code.data()));
 
-	VkShaderModule shader_module;
+	VkShaderModule shader_module {};
 	auto rv = vkCreateShaderModule(eng_data.logical_device,
 								   &create_info,
 								   nullptr,
@@ -1018,6 +1015,7 @@ VkPhysicalDevice liboceanlight::engine::select_physical_dev(
 	VkPhysicalDeviceFeatures features {};
 	std::vector<unsigned long int> scores(devs.size());
 	unsigned long int resulting_dev_index {0}, highest_score {0};
+	constexpr unsigned short int bonus_discrete {64}, bonus_integrated{8};
 	for (size_t i {0}; i < devs.size(); ++i)
 	{
 		vkGetPhysicalDeviceProperties(devs[i], &props);
@@ -1031,11 +1029,11 @@ VkPhysicalDevice liboceanlight::engine::select_physical_dev(
 
 		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
-			scores[i] += 64;
+			scores[i] += bonus_discrete;
 		}
 		else if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
 		{
-			scores[i] += 8;
+			scores[i] += bonus_integrated;
 		}
 
 		scores[i] += props.limits.maxImageDimension2D;
@@ -1097,7 +1095,7 @@ const std::vector<std::string> liboceanlight::engine::get_dev_exts(
 	std::vector<std::string> supported;
 	for (auto ext_prop : ext_props)
 	{
-		supported.push_back(ext_prop.extensionName);
+		supported.emplace_back(ext_prop.extensionName);
 	}
 
 	return supported;
@@ -1137,10 +1135,11 @@ std::vector<const char*> liboceanlight::engine::get_required_extensions()
 
 	if (count == 0)
 	{
-		return std::vector<const char*>();
+		return {};
 	}
 
-	return std::vector<const char*>(extensions, extensions + count);
+	std::span span {extensions, count};
+	return {span.begin(), span.end()};
 }
 
 void liboceanlight::engine::check_inst_ext_support(
@@ -1186,7 +1185,7 @@ const std::vector<std::string> liboceanlight::engine::get_supported_inst_exts()
 	std::vector<std::string> supported_exts;
 	for (auto extension_prop : extension_properties)
 	{
-		supported_exts.push_back(extension_prop.extensionName);
+		supported_exts.emplace_back(extension_prop.extensionName);
 	}
 
 	return supported_exts;
@@ -1233,7 +1232,7 @@ const std::vector<std::string> liboceanlight::engine::get_supported_layers()
 	std::vector<std::string> supported_layers;
 	for (auto layer_prop : layer_properties)
 	{
-		supported_layers.push_back(layer_prop.layerName);
+		supported_layers.emplace_back(layer_prop.layerName);
 	}
 
 	return supported_layers;

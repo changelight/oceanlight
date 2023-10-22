@@ -1,3 +1,4 @@
+#include <gsl/gsl>
 #include <vulkan/vulkan.h>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
@@ -32,9 +33,10 @@ void liboceanlight::engine::cleanup_fences(engine_data& eng_data)
 	const size_t n {eng_data.in_flight_fences.size()};
 	for (size_t i {0}; i < n; ++i)
 	{
-		vkDestroyFence(eng_data.logical_device,
-					   eng_data.in_flight_fences[i],
-					   nullptr);
+		vkDestroyFence(
+			eng_data.logical_device,
+			gsl::at(eng_data.in_flight_fences, static_cast<long long>(i)),
+			nullptr);
 	}
 }
 
@@ -43,17 +45,19 @@ void liboceanlight::engine::cleanup_semaphores(engine_data& eng_data)
 	const size_t signal_sems_n {eng_data.signal_sems.size()};
 	for (size_t i {0}; i < signal_sems_n; ++i)
 	{
-		vkDestroySemaphore(eng_data.logical_device,
-						   eng_data.signal_sems[i],
-						   nullptr);
+		vkDestroySemaphore(
+			eng_data.logical_device,
+			gsl::at(eng_data.signal_sems, static_cast<long long>(i)),
+			nullptr);
 	}
 
 	const size_t wait_sems_n {eng_data.wait_sems.size()};
 	for (size_t i {0}; i < wait_sems_n; ++i)
 	{
-		vkDestroySemaphore(eng_data.logical_device,
-						   eng_data.wait_sems[i],
-						   nullptr);
+		vkDestroySemaphore(
+			eng_data.logical_device,
+			gsl::at(eng_data.wait_sems, static_cast<long long>(i)),
+			nullptr);
 	}
 }
 
@@ -140,12 +144,14 @@ void liboceanlight::engine::cleanup_uniform_buffers(engine_data& eng_data)
 	{
 		for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
 		{
-			vkDestroyBuffer(eng_data.logical_device,
-							eng_data.uniform_buffers[i],
-							nullptr);
+			vkDestroyBuffer(
+				eng_data.logical_device,
+				gsl::at(eng_data.uniform_buffers, static_cast<long long>(i)),
+				nullptr);
 
 			vkFreeMemory(eng_data.logical_device,
-						 eng_data.uniform_buffers_mem[i],
+						 gsl::at(eng_data.uniform_buffers_mem,
+								 static_cast<long long>(i)),
 						 nullptr);
 		}
 	}

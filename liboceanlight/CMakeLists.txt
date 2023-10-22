@@ -14,6 +14,15 @@ set(ENV{VK_LOADER_DEBUG} "all")
 
 include(FetchContent)
 FetchContent_Declare(
+    gsl
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/gsl
+    GIT_REPOSITORY https://github.com/microsoft/GSL
+    GIT_TAG origin/main
+    GIT_SHALLOW ON)
+FetchContent_MakeAvailable(gsl)
+
+include(FetchContent)
+FetchContent_Declare(
     glfw
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glfw
     GIT_REPOSITORY https://github.com/glfw/glfw)
@@ -24,6 +33,15 @@ FetchContent_Declare(
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glm
     GIT_REPOSITORY https://github.com/g-truc/glm)
 FetchContent_MakeAvailable(glm)
+
+FetchContent_Declare(
+    stb
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/stb
+    URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+    DOWNLOAD_NO_EXTRACT TRUE)
+FetchContent_MakeAvailable(stb)
+add_library(stb STATIC src/stb_impl.cc ${CMAKE_CURRENT_BINARY_DIR}/external/stb/src/stb_image.h)
+target_include_directories(stb PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/external/stb/src")
 
 FetchContent_Declare(
     googletest
@@ -53,7 +71,7 @@ add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 add_dependencies(liboceanlight shaders)
 
 target_include_directories(liboceanlight PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}" ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} glfw glm)
+target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} Microsoft.GSL::GSL glfw glm stb)
 
 if (BUILD_TESTING)
     add_subdirectory(test)

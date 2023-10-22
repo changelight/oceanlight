@@ -28,7 +28,7 @@ void lol_glfw_framebuffer_size_callback(GLFWwindow* window_pointer,
 										int width,
 										int height)
 {
-	auto window = reinterpret_cast<liboceanlight::window*>(
+	auto window = static_cast<liboceanlight::window*>(
 		glfwGetWindowUserPointer(window_pointer));
 	window->framebuffer_resized = true;
 }

@@ -1,7 +1,7 @@
 ﻿---
 BasedOnStyle: LLVM
 AccessModifierOffset: '0'
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: 'Align'
 AlignConsecutiveAssignments: 'false'
 AlignConsecutiveDeclarations: 'false'
 AlignConsecutiveMacros: 'true'
@@ -11,13 +11,13 @@ AlignTrailingComments: 'true'
 AllowAllArgumentsOnNextLine: 'false'
 AllowAllConstructorInitializersOnNextLine: 'false'
 AllowAllParametersOfDeclarationOnNextLine: 'false'
-AllowShortBlocksOnASingleLine: 'false'
+AllowShortBlocksOnASingleLine: 'Empty'
 AllowShortCaseLabelsOnASingleLine: 'false'
 AllowShortFunctionsOnASingleLine: 'Inline'
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLambdasOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: 'Never'
+AllowShortLambdasOnASingleLine: 'All'
 AllowShortLoopsOnASingleLine: 'false'
-AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterReturnType: 'None'
 AlwaysBreakBeforeMultilineStrings: 'false'
 AlwaysBreakTemplateDeclarations: 'No'
 BinPackArguments: 'false'
@@ -48,7 +48,7 @@ KeepEmptyLinesAtTheStartOfBlocks: 'false'
 InsertNewlineAtEOF: true
 Language: Cpp
 NamespaceIndentation: All
-PenaltyBreakAssignment: '100'
+PenaltyBreakAssignment: '150'
 PenaltyReturnTypeOnItsOwnLine: '999'
 PenaltyBreakBeforeFirstCallParameter: '0'
 PointerAlignment: Left

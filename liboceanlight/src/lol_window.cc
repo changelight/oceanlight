@@ -40,12 +40,6 @@ namespace liboceanlight
 									   lol_glfw_framebuffer_size_callback);
 	}
 
-	window::window(const window& w) : window(w.width, w.height) {}
-	window::~window()
-	{
-		glfwDestroyWindow(window_pointer);
-	}
-
 	int window::should_close()
 	{
 		return glfwWindowShouldClose(window_pointer);
