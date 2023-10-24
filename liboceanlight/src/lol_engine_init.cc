@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <format>
 #include <span>
+#include <cstring>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
