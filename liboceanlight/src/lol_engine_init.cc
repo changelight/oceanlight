@@ -640,7 +640,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 								   VK_NULL_HANDLE,
 								   1,
 								   &pipeline_info,
-								   NULL,
+								   nullptr,
 								   &eng_data.graphics_pipeline);
 
 	if (rv != VK_SUCCESS)

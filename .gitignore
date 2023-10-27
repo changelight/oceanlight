@@ -2,6 +2,9 @@
 build
 build-linux
 
+# Don't track nvim files
+.nvim
+
 # Don't track Visual studio code configuration
 .vscode
 
