@@ -1,8 +1,8 @@
 #ifndef LIBOCEANLIGHT_ENGINE_SHUTDOWN_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_SHUTDOWN_HPP_INCLUDED
-#include <vulkan/vulkan_core.h>
-#include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace liboceanlight::engine
 {
@@ -11,6 +11,7 @@ namespace liboceanlight::engine
 	void cleanup_logical_device(engine_data&);
 	void cleanup_surface(engine_data&);
 	void cleanup_swapchain(engine_data&);
+	void cleanup_images(engine_data&);
 	void cleanup_vertex_buffer(engine_data&);
 	void cleanup_index_buffer(engine_data&);
 	void cleanup_uniform_buffers(engine_data&);
@@ -22,5 +23,4 @@ namespace liboceanlight::engine
 	void deinitialize(engine_data&);
 	void shutdown(engine_data&);
 } /* namespace liboceanlight::engine */
-
 #endif /* LIBOCEANLIGHT_ENGINE_SHUTDOWN_HPP_INCLUDED */

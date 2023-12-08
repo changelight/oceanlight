@@ -4,3 +4,4 @@
 #define PROJECT_VER_MINOR @PROJECT_VERSION_MINOR@
 #define PROJECT_VER_PATCH @PROJECT_VERSION_PATCH@
 #define SHADER_PATH "@CMAKE_BINARY_DIR@/liboceanlight/shaders/"
+#define TEXTURE_PATH "@CMAKE_SOURCE_DIR@/liboceanlight/textures/"

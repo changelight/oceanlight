@@ -1,5 +1,5 @@
-#include <iostream>
 #include <GLFW/glfw3.h>
+#include <iostream>
 #include <liboceanlight/lol_window.hpp>
 
 void lol_glfw_error_callback(int error_code, const char* description)

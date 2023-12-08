@@ -1,11 +1,11 @@
 #ifndef LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED
+#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_window.hpp>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <liboceanlight/lol_engine.hpp>
-#include <liboceanlight/lol_window.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
 
 namespace liboceanlight::engine
 {
@@ -23,7 +23,8 @@ namespace liboceanlight::engine
 	const std::vector<std::string> get_supported_layers();
 
 	/* PHYSICAL_DEVICE */
-	VkPhysicalDevice select_physical_dev(std::vector<VkPhysicalDevice>&);
+	VkPhysicalDevice select_physical_dev(engine_data&,
+										 std::vector<VkPhysicalDevice>&);
 	void check_dev_ext_support(engine_data&);
 	const std::vector<std::string> get_dev_exts(engine_data&);
 
@@ -41,6 +42,7 @@ namespace liboceanlight::engine
 	VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	void create_swapchain(engine_data&);
 	void create_image_views(engine_data&);
+	VkImageView create_image_view(engine_data&, VkImage, VkFormat);
 
 	/* PIPELINE */
 	void create_render_pass(engine_data&);
@@ -53,6 +55,32 @@ namespace liboceanlight::engine
 	/* COMMAND */
 	void create_cmd_pool(engine_data&);
 	void create_cmd_buffer(engine_data&);
+	VkCommandBuffer begin_single_time_cmds(engine_data&);
+	void end_single_time_cmds(engine_data&, VkCommandBuffer&);
+
+	/* TEXTURE */
+	void create_texture_img(engine_data&);
+	void create_image(engine_data&,
+					  uint32_t,
+					  uint32_t,
+					  VkFormat,
+					  VkImageTiling,
+					  VkImageUsageFlags,
+					  VkMemoryPropertyFlags,
+					  VkImage&,
+					  VkDeviceMemory&);
+	void transition_img_layout(engine_data&,
+							   VkImage,
+							   VkFormat,
+							   VkImageLayout,
+							   VkImageLayout);
+	void copy_buffer_to_img(engine_data&,
+							VkBuffer,
+							VkImage,
+							uint32_t,
+							uint32_t);
+	void create_texture_img_view(engine_data&);
+	void create_texture_sampler(engine_data&);
 
 	/* VERTEX BUFFER */
 	void create_vertex_buffer(engine_data&);
@@ -75,5 +103,4 @@ namespace liboceanlight::engine
 	void create_descriptor_pool(engine_data&);
 	void create_descriptor_sets(engine_data&);
 } /* namespace liboceanlight::engine */
-
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

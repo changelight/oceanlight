@@ -1,11 +1,11 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
-#include <vector>
 #include <array>
-#include <vulkan/vulkan_core.h>
+#include <config.h>
 #include <glm/glm.hpp>
 #include <liboceanlight/lol_window.hpp>
-#include <config.h>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace liboceanlight::engine
 {
@@ -25,6 +25,8 @@ namespace liboceanlight::engine
 		VkDevice logical_device {VK_NULL_HANDLE};
 		static constexpr std::array dev_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+		VkPhysicalDeviceProperties device_props {};
+		VkPhysicalDeviceFeatures supported_device_features {};
 
 		/* SURFACE */
 		VkSurfaceKHR window_surface {nullptr};
@@ -54,6 +56,12 @@ namespace liboceanlight::engine
 		VkCommandPool command_pool {nullptr};
 		std::array<VkCommandBuffer, max_frames_in_flight> command_buffers;
 
+		/* TEXTURE */
+		VkImage texture_img {nullptr};
+		VkDeviceMemory texture_img_mem {nullptr};
+		VkImageView texture_img_view {nullptr};
+		VkSampler texture_sampler {nullptr};
+
 		/* DRAW */
 		int current_frame {0};
 		std::array<VkSemaphore, max_frames_in_flight> signal_sems;
@@ -82,6 +90,7 @@ namespace liboceanlight::engine
 	{
 		glm::vec2 pos;
 		glm::vec3 color;
+		glm::vec2 texcoord;
 
 		static VkVertexInputBindingDescription get_binding_desc()
 		{
@@ -92,10 +101,10 @@ namespace liboceanlight::engine
 			return binding_desc;
 		};
 
-		static std::array<VkVertexInputAttributeDescription, 2>
+		static std::array<VkVertexInputAttributeDescription, 3>
 		get_attribute_descs()
 		{
-			std::array<VkVertexInputAttributeDescription, 2>
+			std::array<VkVertexInputAttributeDescription, 3>
 				attribute_descs {};
 
 			attribute_descs[0].binding = 0;
@@ -107,17 +116,23 @@ namespace liboceanlight::engine
 			attribute_descs[1].location = 1;
 			attribute_descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 			attribute_descs[1].offset = offsetof(lol_vertex_struct, color);
+
+			attribute_descs[2].binding = 0;
+			attribute_descs[2].location = 2;
+			attribute_descs[2].format = VK_FORMAT_R32G32_SFLOAT;
+			attribute_descs[2].offset = offsetof(lol_vertex_struct, texcoord);
 			return attribute_descs;
 		};
 	};
 
-	static std::vector<vertex> vertices {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-										 {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-										 {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-										 {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+	static std::vector<vertex> vertices {
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
 
 	constexpr unsigned short int count {6};
-	static std::array<uint16_t, count> indices {0, 1, 2, 2, 3, 0};
+	static const std::array<uint16_t, count> indices {0, 1, 2, 2, 3, 0};
 	struct uniform_buffer_object
 	{
 		glm::mat4 model, view, proj;
@@ -129,12 +144,11 @@ namespace liboceanlight::engine
 	void record_cmd_buffer(engine_data&, VkCommandBuffer&, uint32_t);
 	void recreate_swapchain(liboceanlight::window&, engine_data&);
 	void upload_buffer(engine_data&,
-					   void*,
+					   const void*,
 					   VkDeviceSize,
 					   VkBufferUsageFlagBits,
 					   VkBuffer&,
 					   VkDeviceMemory&);
 	void update_uniform_buffer(engine_data&, uint32_t);
 } /* namespace liboceanlight::engine */
-
 #endif /* LIBOCEANLIGHT_ENGINE_HPP_INCLUDED */

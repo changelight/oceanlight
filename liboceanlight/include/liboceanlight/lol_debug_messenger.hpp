@@ -1,7 +1,7 @@
 #ifndef LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED
 #define LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED
-#include <vulkan/vulkan.h>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 namespace liboceanlight::engine
 {
@@ -29,5 +29,4 @@ namespace liboceanlight::engine
 		const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
 		void* user_data);
 } /* namespace liboceanlight::engine */
-
 #endif /* LIBOCEANLIGHT_DEBUG_MESSENGER_HPP_INCLUDED */

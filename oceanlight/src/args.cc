@@ -1,8 +1,8 @@
-#include <iostream>
-#include <cxxopts.hpp>
-#include <liboceanlight/lol_version.hpp>
-#include <config.h>
 #include "args.hpp"
+#include <config.h>
+#include <cxxopts.hpp>
+#include <iostream>
+#include <liboceanlight/lol_version.hpp>
 
 void oceanlight::args::parse(int argc, char** argv)
 {

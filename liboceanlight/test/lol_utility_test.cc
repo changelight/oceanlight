@@ -34,7 +34,7 @@ int __wrap_foo()
 
 TEST(basic_tests, create_instance_creates_instance)
 {
-	//EXPECT_EQ(foo(), 3);
+	// EXPECT_EQ(foo(), 3);
 	/*liboceanlight::engine::instance_data inst_data {};
 	liboceanlight::engine::debug_messenger_data dbg_data {};
 

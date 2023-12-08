@@ -1,19 +1,19 @@
-#include <gsl/gsl>
-#include <vector>
+#include <GLFW/glfw3.h>
 #include <chrono>
 #include <cstring>
+#include <gsl/gsl>
+#include <vector>
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
+#include <config.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
-#include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
-#include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_utility.hpp>
-#include <config.h>
+#include <liboceanlight/lol_window.hpp>
 
 using namespace liboceanlight::engine;
 
@@ -249,7 +249,7 @@ void liboceanlight::engine::update_uniform_buffer(engine_data& eng_data,
 }
 
 void liboceanlight::engine::upload_buffer(engine_data& eng_data,
-										  void* buff,
+										  const void* buff,
 										  VkDeviceSize buff_size,
 										  VkBufferUsageFlagBits usage,
 										  VkBuffer& dst,

@@ -1,8 +1,8 @@
 #include <gsl/gsl>
-#include <vulkan/vulkan.h>
+#include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
+#include <vulkan/vulkan.h>
 
 using namespace liboceanlight::engine;
 
@@ -18,6 +18,7 @@ void liboceanlight::engine::deinitialize(engine_data& eng_data)
 	cleanup_commands(eng_data);
 	cleanup_pipeline(eng_data);
 	cleanup_swapchain(eng_data);
+	cleanup_images(eng_data);
 	cleanup_descriptor_pool(eng_data);
 	cleanup_vertex_buffer(eng_data);
 	cleanup_index_buffer(eng_data);
@@ -119,6 +120,18 @@ void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 							  eng_data.swap_chain,
 							  nullptr);
 	}
+}
+
+void liboceanlight::engine::cleanup_images(engine_data& eng_data)
+{
+	vkDestroySampler(eng_data.logical_device,
+					 eng_data.texture_sampler,
+					 nullptr);
+	vkDestroyImageView(eng_data.logical_device,
+					   eng_data.texture_img_view,
+					   nullptr);
+	vkDestroyImage(eng_data.logical_device, eng_data.texture_img, nullptr);
+	vkFreeMemory(eng_data.logical_device, eng_data.texture_img_mem, nullptr);
 }
 
 void liboceanlight::engine::cleanup_descriptor_pool(engine_data& eng_data)

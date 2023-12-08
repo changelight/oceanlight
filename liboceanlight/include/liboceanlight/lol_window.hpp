@@ -1,9 +1,9 @@
 #ifndef LIBOCEANLIGHT_WINDOW_HPP_INCLUDED
 #define LIBOCEANLIGHT_WINDOW_HPP_INCLUDED
-#include <string>
-#include <utility>
 #include <GLFW/glfw3.h>
 #include <config.h>
+#include <string>
+#include <utility>
 
 namespace liboceanlight
 {
@@ -12,7 +12,7 @@ namespace liboceanlight
 		int width, height;
 		std::string window_name {PROJECT_NAME};
 
-		public:
+	  public:
 		GLFWwindow* window_pointer {nullptr};
 		bool framebuffer_resized {false};
 
@@ -20,7 +20,8 @@ namespace liboceanlight
 		window(const window& w) = delete;
 		window& operator=(const window&) = delete;
 		window(window&& old_window) noexcept :
-			width(old_window.width), height(old_window.height),
+			width(old_window.width),
+			height(old_window.height),
 			window_name(std::move(old_window.window_name)),
 			window_pointer(std::exchange(old_window.window_pointer, nullptr)),
 			framebuffer_resized(old_window.framebuffer_resized)

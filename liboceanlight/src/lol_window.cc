@@ -1,14 +1,16 @@
-#include <string>
-#include <stdexcept>
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/lol_engine.hpp>
-#include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_glfw_callbacks.hpp>
+#include <liboceanlight/lol_window.hpp>
+#include <stdexcept>
+#include <string>
+#include <vulkan/vulkan.h>
 
 namespace liboceanlight
 {
-	window::window(int w, int h) : width(w), height(h)
+	window::window(int w, int h) :
+		width(w),
+		height(h)
 	{
 		glfwSetErrorCallback(lol_glfw_error_callback);
 
@@ -44,4 +46,4 @@ namespace liboceanlight
 	{
 		return glfwWindowShouldClose(window_pointer);
 	}
-}
+} /* namespace liboceanlight */
