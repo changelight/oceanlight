@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vulkan/vulkan.h>
-#include <liboceanlight/lol_engine.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
 #include <config.h>
+#include <iostream>
+#include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_engine.hpp>
+#include <vulkan/vulkan.h>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL liboceanlight::engine::dbg_messenger_callback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT severity,

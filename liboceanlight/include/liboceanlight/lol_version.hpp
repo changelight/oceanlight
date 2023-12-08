@@ -3,6 +3,6 @@
 #include <string>
 namespace liboceanlight
 {
-    std::string version_string();
+	std::string version_string();
 } /* namespace liboceanlight */
 #endif /* LIBOCEANLIGHT_VERSION_HPP_INCLUDED */

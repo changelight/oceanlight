@@ -1,11 +1,11 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <liboceanlight/lol_utility.hpp>
 #include <map>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include <vulkan/vulkan_core.h>
-#include <liboceanlight/lol_utility.hpp>
 
 std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
 {
@@ -41,7 +41,7 @@ std::vector<char> liboceanlight::read_file(const std::string& filename)
 		throw std::runtime_error("Failed to open file " + filename);
 	}
 
-	size_t filesize = (size_t)file.tellg();
+	const auto filesize {file.tellg()};
 	std::vector<char> buffer(filesize);
 	file.seekg(0);
 	file.read(buffer.data(), filesize);

@@ -1,11 +1,11 @@
-#include <iostream>
-#include <exception>
-#include <config.h>
-#include <liboceanlight/lol_window.hpp>
-#include <liboceanlight/lol_engine_init.hpp>
-#include <liboceanlight/lol_engine.hpp>
-#include <liboceanlight/lol_engine_shutdown.hpp>
 #include "args.hpp"
+#include <config.h>
+#include <exception>
+#include <iostream>
+#include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
+#include <liboceanlight/lol_engine_shutdown.hpp>
+#include <liboceanlight/lol_window.hpp>
 
 int main(int argc, char** argv)
 {

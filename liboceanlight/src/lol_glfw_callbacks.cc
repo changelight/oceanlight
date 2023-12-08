@@ -1,5 +1,5 @@
-#include <iostream>
 #include <GLFW/glfw3.h>
+#include <iostream>
 #include <liboceanlight/lol_window.hpp>
 
 void lol_glfw_error_callback(int error_code, const char* description)
@@ -28,7 +28,7 @@ void lol_glfw_framebuffer_size_callback(GLFWwindow* window_pointer,
 										int width,
 										int height)
 {
-	auto window = reinterpret_cast<liboceanlight::window*>(
+	auto window = static_cast<liboceanlight::window*>(
 		glfwGetWindowUserPointer(window_pointer));
 	window->framebuffer_resized = true;
 }

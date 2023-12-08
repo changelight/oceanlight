@@ -1,18 +1,19 @@
-#include <stdexcept>
-#include <vector>
-#include <chrono>
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <chrono>
+#include <cstring>
+#include <gsl/gsl>
+#include <vector>
+#include <vulkan/vulkan.h>
 #define GLM_FORCE_RADIANS
+#include <config.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
-#include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
-#include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_utility.hpp>
-#include <config.h>
+#include <liboceanlight/lol_window.hpp>
 
 using namespace liboceanlight::engine;
 
@@ -35,32 +36,24 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 	vkDeviceWaitIdle(eng_data.logical_device);
 }
 
-/* struct of arrays
-struct vertices2
-{
-	const std::array<glm::vec2, 3> positions {
-		{{0.0f, -0.5f}, {0.5f, 0.5f}, {-0.5f, 0.5f}}};
-	const std::array<glm::vec3, 3> colors {
-		{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-};*/
-
 void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 									   engine_data& eng_data)
 {
-	vkWaitForFences(eng_data.logical_device,
-					1,
-					&eng_data.in_flight_fences[eng_data.current_frame],
-					VK_TRUE,
-					UINT64_MAX);
+	vkWaitForFences(
+		eng_data.logical_device,
+		1,
+		&gsl::at(eng_data.in_flight_fences, eng_data.current_frame),
+		VK_TRUE,
+		UINT64_MAX);
 
-	uint32_t image_index;
-	VkResult rv;
-	rv = vkAcquireNextImageKHR(eng_data.logical_device,
-							   eng_data.swap_chain,
-							   UINT64_MAX,
-							   eng_data.wait_sems[eng_data.current_frame],
-							   VK_NULL_HANDLE,
-							   &image_index);
+	uint32_t image_index {};
+	VkResult rv = vkAcquireNextImageKHR(
+		eng_data.logical_device,
+		eng_data.swap_chain,
+		UINT64_MAX,
+		gsl::at(eng_data.wait_sems, eng_data.current_frame),
+		VK_NULL_HANDLE,
+		&image_index);
 
 	if (rv == VK_ERROR_OUT_OF_DATE_KHR)
 	{
@@ -74,36 +67,40 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 
 	vkResetFences(eng_data.logical_device,
 				  1,
-				  &eng_data.in_flight_fences[eng_data.current_frame]);
+				  &gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
 
-	vkResetCommandBuffer(eng_data.command_buffers[eng_data.current_frame], 0);
-	record_cmd_buffer(eng_data,
-					  eng_data.command_buffers[eng_data.current_frame],
-					  image_index);
+	vkResetCommandBuffer(
+		gsl::at(eng_data.command_buffers, eng_data.current_frame),
+		0);
+	record_cmd_buffer(
+		eng_data,
+		gsl::at(eng_data.command_buffers, eng_data.current_frame),
+		image_index);
 
 	update_uniform_buffer(eng_data, eng_data.current_frame);
 
 	VkSubmitInfo submit_info {};
-	VkSemaphore signal_sems[] {eng_data.signal_sems[eng_data.current_frame]};
+	std::array signal {gsl::at(eng_data.signal_sems, eng_data.current_frame)};
 	submit_info.signalSemaphoreCount = 1;
-	submit_info.pSignalSemaphores = signal_sems;
+	submit_info.pSignalSemaphores = signal.data();
 
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	VkSemaphore wait_sems[] {eng_data.wait_sems[eng_data.current_frame]};
-	VkPipelineStageFlags wait_stages[] {
+	std::array wait {gsl::at(eng_data.wait_sems, eng_data.current_frame)};
+	const VkPipelineStageFlags wait_stages {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
 	submit_info.waitSemaphoreCount = 1;
-	submit_info.pWaitSemaphores = wait_sems;
-	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.pWaitSemaphores = wait.data();
+	submit_info.pWaitDstStageMask = &wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers =
-		&eng_data.command_buffers[eng_data.current_frame];
+	submit_info.pCommandBuffers = &gsl::at(eng_data.command_buffers,
+										   eng_data.current_frame);
 
-	rv = vkQueueSubmit(eng_data.graphics_queue,
-					   1,
-					   &submit_info,
-					   eng_data.in_flight_fences[eng_data.current_frame]);
+	rv = vkQueueSubmit(
+		eng_data.graphics_queue,
+		1,
+		&submit_info,
+		gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
 
 	if (rv != VK_SUCCESS)
 	{
@@ -113,11 +110,11 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	VkPresentInfoKHR present_info {};
 	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	present_info.waitSemaphoreCount = 1;
-	present_info.pWaitSemaphores = signal_sems;
+	present_info.pWaitSemaphores = signal.data();
 
-	VkSwapchainKHR swap_chains[] {eng_data.swap_chain};
+	const VkSwapchainKHR swap_chains {eng_data.swap_chain};
 	present_info.swapchainCount = 1;
-	present_info.pSwapchains = swap_chains;
+	present_info.pSwapchains = &swap_chains;
 	present_info.pImageIndices = &image_index;
 	present_info.pResults = nullptr;
 
@@ -147,8 +144,7 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	begin_info.flags = 0;
 	begin_info.pInheritanceInfo = nullptr;
 
-	VkResult rv;
-	rv = vkBeginCommandBuffer(cmd_buffer, &begin_info);
+	VkResult rv = vkBeginCommandBuffer(cmd_buffer, &begin_info);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -170,22 +166,23 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 					  VK_PIPELINE_BIND_POINT_GRAPHICS,
 					  eng_data.graphics_pipeline);
 
-	VkBuffer vertex_buffers[] = {eng_data.vertex_buffer};
-	VkDeviceSize offsets[] = {0};
-	vkCmdBindVertexBuffers(cmd_buffer, 0, 1, vertex_buffers, offsets);
+	VkBuffer vertex_buffers = {eng_data.vertex_buffer};
+	VkDeviceSize offsets = {0};
+	vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &vertex_buffers, &offsets);
 	vkCmdBindIndexBuffer(cmd_buffer,
 						 eng_data.index_buffer,
 						 0,
 						 VK_INDEX_TYPE_UINT16);
 
-	vkCmdBindDescriptorSets(cmd_buffer,
-							VK_PIPELINE_BIND_POINT_GRAPHICS,
-							eng_data.pipeline_layout,
-							0,
-							1,
-							&eng_data.descriptor_sets[eng_data.current_frame],
-							0,
-							nullptr);
+	vkCmdBindDescriptorSets(
+		cmd_buffer,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		eng_data.pipeline_layout,
+		0,
+		1,
+		&gsl::at(eng_data.descriptor_sets, eng_data.current_frame),
+		0,
+		nullptr);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;
@@ -221,34 +218,38 @@ void liboceanlight::engine::update_uniform_buffer(engine_data& eng_data,
 												  uint32_t current_image)
 {
 	static auto start_time {std::chrono::high_resolution_clock::now()};
-
 	auto current_time {std::chrono::high_resolution_clock::now()};
 	float time {std::chrono::duration<float, std::chrono::seconds::period>(
 					current_time - start_time)
 					.count()};
 
+	const float angle {90.0f}, eye {2.0f}, center {2.0f}, up {2.0f};
 	uniform_buffer_object ubo {};
 	ubo.model = glm::rotate(glm::mat4(1.0f),
-							time * glm::radians(90.0f),
+							time * glm::radians(angle),
 							glm::vec3(0.0f, 0.0f, 1.0f));
 
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
+	ubo.view = glm::lookAt(glm::vec3(eye, center, up),
 						   glm::vec3(0.0f, 0.0f, 0.0f),
 						   glm::vec3(0.0f, 0.0f, 1.0f));
 
+	const float degrees {45.0f}, zfar {10.0f};
 	ubo.proj = glm::perspective(
-		glm::radians(45.0f),
-		eng_data.swap_extent.width / (float)eng_data.swap_extent.height,
+		glm::radians(degrees),
+		static_cast<float>(eng_data.swap_extent.width) /
+			static_cast<float>(eng_data.swap_extent.height),
 		1.0f,
-		10.0f);
+		zfar);
 
 	ubo.proj[1][1] *= -1;
 
-	memcpy(eng_data.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+	memcpy(gsl::at(eng_data.uniform_buffers_mapped, current_image),
+		   &ubo,
+		   sizeof(ubo));
 }
 
 void liboceanlight::engine::upload_buffer(engine_data& eng_data,
-										  void* buff,
+										  const void* buff,
 										  VkDeviceSize buff_size,
 										  VkBufferUsageFlagBits usage,
 										  VkBuffer& dst,
@@ -269,7 +270,7 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 				  staging_buff,
 				  staging_buff_mem);
 
-	void* data;
+	void* data {};
 	vkMapMemory(eng_data.logical_device,
 				staging_buff_mem,
 				0,

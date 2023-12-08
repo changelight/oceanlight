@@ -6,11 +6,11 @@ namespace oceanlight
 	{
 		bool exit_flag {false};
 
-		public:
+	  public:
 		int width, height;
 		args() : width(640), height(480) {};
 		void parse(int, char**);
 		bool should_exit();
 	};
-}
+} /* namespace oceanlight */
 #endif /* OCEANLIGHT_ARGS_HPP_INCLUDED */
