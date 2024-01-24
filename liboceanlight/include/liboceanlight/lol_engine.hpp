@@ -84,11 +84,17 @@ namespace liboceanlight::engine
 		/* DESCRIPTOR */
 		VkDescriptorPool descriptor_pool {nullptr};
 		std::array<VkDescriptorSet, max_frames_in_flight> descriptor_sets;
+
+		/* DEPTH BUFFER */
+		VkImage depth_img {nullptr};
+		VkDeviceMemory depth_img_mem {nullptr};
+		VkImageView depth_img_view {nullptr};
+		VkFormat depth_fmt {VK_FORMAT_D32_SFLOAT};
 	};
 
 	using vertex = struct lol_vertex_struct
 	{
-		glm::vec2 pos;
+		glm::vec3 pos;
 		glm::vec3 color;
 		glm::vec2 texcoord;
 
@@ -109,7 +115,7 @@ namespace liboceanlight::engine
 
 			attribute_descs[0].binding = 0;
 			attribute_descs[0].location = 0;
-			attribute_descs[0].format = VK_FORMAT_R32G32_SFLOAT;
+			attribute_descs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 			attribute_descs[0].offset = offsetof(lol_vertex_struct, pos);
 
 			attribute_descs[1].binding = 0;
@@ -126,13 +132,19 @@ namespace liboceanlight::engine
 	};
 
 	static std::vector<vertex> vertices {
-		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
+		{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
 
-	constexpr unsigned short int count {6};
-	static const std::array<uint16_t, count> indices {0, 1, 2, 2, 3, 0};
+		{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+		{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+		{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+		{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
+
+	constexpr unsigned short int count {12};
+	static const std::array<uint16_t, count>
+		indices {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 	struct uniform_buffer_object
 	{
 		glm::mat4 model, view, proj;

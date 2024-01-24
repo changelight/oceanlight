@@ -1,11 +1,12 @@
 #include <GLFW/glfw3.h>
 #include <chrono>
+#include <config.h>
 #include <cstring>
 #include <gsl/gsl>
 #include <vector>
 #include <vulkan/vulkan.h>
-#define GLM_FORCE_RADIANS
-#include <config.h>
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
@@ -151,15 +152,17 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 		throw std::runtime_error("Failed to begin recording command buffer");
 	}
 
+	VkClearValue color_clear_val {{0.0f, 0.0f, 0.0f, 1.0f}};
+	VkClearValue depth_stencil_clear_val {1.0f, 0};
+	std::array<VkClearValue, 2> clear_values {color_clear_val, depth_stencil_clear_val};
 	VkRenderPassBeginInfo pass_info {};
 	pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	pass_info.renderPass = eng_data.render_pass;
 	pass_info.framebuffer = eng_data.frame_buffers[image_index];
 	pass_info.renderArea.offset = {0, 0};
 	pass_info.renderArea.extent = eng_data.swap_extent;
-	VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-	pass_info.clearValueCount = 1;
-	pass_info.pClearValues = &clear_color;
+	pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+	pass_info.pClearValues = clear_values.data();
 
 	vkCmdBeginRenderPass(cmd_buffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(cmd_buffer,
@@ -309,5 +312,6 @@ void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
 	get_swapchain_details(w, eng_data);
 	create_swapchain(eng_data);
 	create_image_views(eng_data);
+	create_depth_resources(eng_data);
 	create_framebuffers(eng_data);
 }

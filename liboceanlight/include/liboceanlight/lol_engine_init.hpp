@@ -42,7 +42,10 @@ namespace liboceanlight::engine
 	VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	void create_swapchain(engine_data&);
 	void create_image_views(engine_data&);
-	VkImageView create_image_view(engine_data&, VkImage, VkFormat);
+	VkImageView create_image_view(engine_data&,
+								  VkImage,
+								  VkFormat,
+								  VkImageAspectFlags);
 
 	/* PIPELINE */
 	void create_render_pass(engine_data&);
@@ -102,5 +105,8 @@ namespace liboceanlight::engine
 	/* DESCRIPTOR */
 	void create_descriptor_pool(engine_data&);
 	void create_descriptor_sets(engine_data&);
+
+	/* DEPTH BUFFER */
+	void create_depth_resources(engine_data&);
 } /* namespace liboceanlight::engine */
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

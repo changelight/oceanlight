@@ -28,11 +28,15 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/glfw/glfw)
 FetchContent_MakeAvailable(glfw)
 
+set(GLM_ENABLE_CXX_20 ON)
 FetchContent_Declare(
     glm
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glm
     GIT_REPOSITORY https://github.com/g-truc/glm)
 FetchContent_MakeAvailable(glm)
+target_compile_definitions(glm PUBLIC GLM_FORCE_SILENT_WARNINGS)
+target_compile_definitions(glm PUBLIC GLM_BUILD_TESTS=OFF)
+target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
 
 FetchContent_Declare(
     stb
@@ -71,7 +75,7 @@ add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 add_dependencies(liboceanlight shaders)
 
 target_include_directories(liboceanlight PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}" ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} Microsoft.GSL::GSL glfw glm stb)
+target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} Microsoft.GSL::GSL glfw glm::glm stb)
 
 if (BUILD_TESTING)
     add_subdirectory(test)

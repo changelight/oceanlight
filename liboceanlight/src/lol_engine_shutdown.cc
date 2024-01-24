@@ -98,6 +98,12 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 
 void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 {
+	vkDestroyImageView(eng_data.logical_device,
+					   eng_data.depth_img_view,
+					   nullptr);
+	vkDestroyImage(eng_data.logical_device, eng_data.depth_img, nullptr);
+	vkFreeMemory(eng_data.logical_device, eng_data.depth_img_mem, nullptr);
+
 	const std::vector<int>::size_type fb_n = eng_data.frame_buffers.size();
 	for (std::vector<int>::size_type i {0}; i < fb_n; ++i)
 	{
@@ -106,7 +112,7 @@ void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 							 nullptr);
 	}
 
-	const std::vector<int>::size_type iv_n = eng_data.image_views.size();
+	const std::vector<int>::size_type iv_n {eng_data.image_views.size()};
 	for (std::vector<int>::size_type i {0}; i < iv_n; ++i)
 	{
 		vkDestroyImageView(eng_data.logical_device,

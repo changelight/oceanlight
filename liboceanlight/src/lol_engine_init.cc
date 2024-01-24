@@ -31,9 +31,11 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_render_pass(eng_data);
 	create_descriptor_set_layout(eng_data);
 	create_pipeline(eng_data);
-	create_framebuffers(eng_data);
+	// create_framebuffers(eng_data);
 
 	create_cmd_pool(eng_data);
+	create_depth_resources(eng_data);
+	create_framebuffers(eng_data);
 	create_texture_img(eng_data);
 	create_texture_img_view(eng_data);
 	create_texture_sampler(eng_data);
@@ -393,13 +395,16 @@ void liboceanlight::engine::create_image_views(engine_data& eng_data)
 		eng_data.image_views[i] = create_image_view(
 			eng_data,
 			eng_data.images[i],
-			eng_data.surface_format.format);
+			eng_data.surface_format.format,
+			VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 }
 
-VkImageView liboceanlight::engine::create_image_view(engine_data& eng_data,
-													 VkImage img,
-													 VkFormat fmt)
+VkImageView liboceanlight::engine::create_image_view(
+	engine_data& eng_data,
+	VkImage img,
+	VkFormat fmt,
+	VkImageAspectFlags aspect_flags)
 {
 	VkImageViewCreateInfo c_info {};
 	c_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -410,7 +415,7 @@ VkImageView liboceanlight::engine::create_image_view(engine_data& eng_data,
 	c_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 	c_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
 	c_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-	c_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	c_info.subresourceRange.aspectMask = aspect_flags;
 	c_info.subresourceRange.baseMipLevel = 0;
 	c_info.subresourceRange.levelCount = 1;
 	c_info.subresourceRange.baseArrayLayer = 0;
@@ -432,37 +437,59 @@ VkImageView liboceanlight::engine::create_image_view(engine_data& eng_data,
 
 void liboceanlight::engine::create_render_pass(engine_data& eng_data)
 {
-	VkAttachmentDescription color_desc {};
-	color_desc.format = eng_data.surface_format.format;
-	color_desc.samples = VK_SAMPLE_COUNT_1_BIT;
-	color_desc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	color_desc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	color_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	color_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	color_desc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	color_desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	VkAttachmentDescription color_attachment {};
+	color_attachment.format = eng_data.surface_format.format;
+	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	VkAttachmentReference color_ref {};
 	color_ref.attachment = 0;
 	color_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	VkAttachmentDescription depth_attachment {};
+	depth_attachment.format = eng_data.depth_fmt;
+	depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depth_attachment.finalLayout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depth_attachment_ref {};
+	depth_attachment_ref.attachment = 1;
+	depth_attachment_ref.layout =
+		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkSubpassDescription subpass_desc {};
 	subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass_desc.colorAttachmentCount = 1;
 	subpass_desc.pColorAttachments = &color_ref;
+	subpass_desc.pDepthStencilAttachment = &depth_attachment_ref;
 
 	VkSubpassDependency subpass_dep {};
 	subpass_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
 	subpass_dep.dstSubpass = 0;
-	subpass_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpass_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+							   VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	subpass_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+							   VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	subpass_dep.srcAccessMask = 0;
-	subpass_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+								VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+	std::array attachments {color_attachment, depth_attachment};
 	VkRenderPassCreateInfo render_pass_info {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_info.attachmentCount = 1;
-	render_pass_info.pAttachments = &color_desc;
+	render_pass_info.attachmentCount = static_cast<uint32_t>(
+		attachments.size());
+	render_pass_info.pAttachments = attachments.data();
 	render_pass_info.subpassCount = 1;
 	render_pass_info.pSubpasses = &subpass_desc;
 	render_pass_info.dependencyCount = 1;
@@ -601,6 +628,17 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	ms_info.alphaToCoverageEnable = VK_FALSE;
 	ms_info.alphaToOneEnable = VK_FALSE;
 
+	VkPipelineDepthStencilStateCreateInfo depth_stencil {};
+	depth_stencil.sType =
+		VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depth_stencil.depthTestEnable = VK_TRUE;
+	depth_stencil.depthWriteEnable = VK_TRUE;
+	depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depth_stencil.depthBoundsTestEnable = VK_FALSE;
+	depth_stencil.stencilTestEnable = VK_FALSE;
+	depth_stencil.minDepthBounds = 0.0f; // Optional
+	depth_stencil.maxDepthBounds = 1.0f; // Optional
+
 	VkPipelineColorBlendAttachmentState color_blend {};
 	color_blend.colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
 								 VK_COLOR_COMPONENT_G_BIT |
@@ -652,7 +690,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	pipeline_info.pViewportState = &viewport_info;
 	pipeline_info.pRasterizationState = &rasterizer_info;
 	pipeline_info.pMultisampleState = &ms_info;
-	pipeline_info.pDepthStencilState = nullptr;
+	pipeline_info.pDepthStencilState = &depth_stencil;
 	pipeline_info.pColorBlendState = &color_blend_info;
 	pipeline_info.pDynamicState = &dyn_info;
 	pipeline_info.layout = eng_data.pipeline_layout;
@@ -685,7 +723,6 @@ void liboceanlight::engine::create_framebuffers(engine_data& eng_data)
 	VkFramebufferCreateInfo c_info {};
 	c_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	c_info.renderPass = eng_data.render_pass;
-	c_info.attachmentCount = 1;
 	c_info.width = eng_data.swap_extent.width;
 	c_info.height = eng_data.swap_extent.height;
 	c_info.layers = 1;
@@ -693,7 +730,9 @@ void liboceanlight::engine::create_framebuffers(engine_data& eng_data)
 	VkResult rv {};
 	for (size_t i {0}; i < n; ++i)
 	{
-		std::array attachments {eng_data.image_views[i]};
+		std::array attachments {eng_data.image_views[i],
+								eng_data.depth_img_view};
+		c_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 		c_info.pAttachments = attachments.data();
 
 		rv = vkCreateFramebuffer(eng_data.logical_device,
@@ -724,6 +763,30 @@ void liboceanlight::engine::create_cmd_pool(engine_data& eng_data)
 	{
 		throw std::runtime_error("Failed to create command pool");
 	}
+}
+
+void liboceanlight::engine::create_depth_resources(engine_data& eng_data)
+{
+	create_image(eng_data,
+				 eng_data.swap_extent.width,
+				 eng_data.swap_extent.height,
+				 eng_data.depth_fmt,
+				 VK_IMAGE_TILING_OPTIMAL,
+				 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+				 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				 eng_data.depth_img,
+				 eng_data.depth_img_mem);
+
+	eng_data.depth_img_view = create_image_view(eng_data,
+												eng_data.depth_img,
+												eng_data.depth_fmt,
+												VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	transition_img_layout(eng_data,
+						  eng_data.depth_img,
+						  eng_data.depth_fmt,
+						  VK_IMAGE_LAYOUT_UNDEFINED,
+						  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void liboceanlight::engine::create_texture_img(engine_data& eng_data)
@@ -812,20 +875,16 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 	image_info.extent.depth = 1;
 	image_info.mipLevels = 1;
 	image_info.arrayLayers = 1;
-	image_info.format = VK_FORMAT_R8G8B8A8_SRGB;
-	image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_info.format = fmt;
+	image_info.tiling = tiling;
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-					   VK_IMAGE_USAGE_SAMPLED_BIT;
+	image_info.usage = usage;
 	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_info.flags = 0;
 
 	VkResult rv {};
-	rv = vkCreateImage(eng_data.logical_device,
-					   &image_info,
-					   nullptr,
-					   &eng_data.texture_img);
+	rv = vkCreateImage(eng_data.logical_device, &image_info, nullptr, &image);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -833,32 +892,26 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 	}
 
 	VkMemoryRequirements mem_reqs {};
-	vkGetImageMemoryRequirements(eng_data.logical_device,
-								 eng_data.texture_img,
-								 &mem_reqs);
+	vkGetImageMemoryRequirements(eng_data.logical_device, image, &mem_reqs);
 
 	VkMemoryAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	alloc_info.allocationSize = mem_reqs.size;
-	alloc_info.memoryTypeIndex = find_mem_type(
-		eng_data,
-		mem_reqs.memoryTypeBits,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	alloc_info.memoryTypeIndex = find_mem_type(eng_data,
+											   mem_reqs.memoryTypeBits,
+											   props);
 
 	rv = vkAllocateMemory(eng_data.logical_device,
 						  &alloc_info,
 						  nullptr,
-						  &eng_data.texture_img_mem);
+						  &image_mem);
 
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate image memory");
 	}
 
-	vkBindImageMemory(eng_data.logical_device,
-					  eng_data.texture_img,
-					  eng_data.texture_img_mem,
-					  0);
+	vkBindImageMemory(eng_data.logical_device, image, image_mem, 0);
 }
 
 VkCommandBuffer liboceanlight::engine::begin_single_time_cmds(
@@ -901,6 +954,12 @@ void liboceanlight::engine::end_single_time_cmds(engine_data& eng_data,
 						 &cmd_buffer);
 }
 
+bool has_stencil_component(VkFormat format)
+{
+	return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+		   format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
 void liboceanlight::engine::transition_img_layout(engine_data& eng_data,
 												  VkImage img,
 												  VkFormat fmt,
@@ -940,9 +999,32 @@ void liboceanlight::engine::transition_img_layout(engine_data& eng_data,
 		src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	}
+	else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+			 new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+								VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	}
 	else
 	{
 		throw std::runtime_error("Unsupported layout transition");
+	}
+
+	if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	{
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+		if (has_stencil_component(fmt))
+		{
+			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+	}
+	else
+	{
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 
 	vkCmdPipelineBarrier(cmd_buffer,
@@ -989,7 +1071,8 @@ void liboceanlight::engine::create_texture_img_view(engine_data& eng_data)
 {
 	eng_data.texture_img_view = create_image_view(eng_data,
 												  eng_data.texture_img,
-												  VK_FORMAT_R8G8B8A8_SRGB);
+												  VK_FORMAT_R8G8B8A8_SRGB,
+												  VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void liboceanlight::engine::create_texture_sampler(engine_data& eng_data)
