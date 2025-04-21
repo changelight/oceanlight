@@ -42,7 +42,10 @@ namespace liboceanlight::engine
 	VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	void create_swapchain(engine_data&);
 	void create_image_views(engine_data&);
-	VkImageView create_image_view(engine_data&, VkImage, VkFormat);
+	VkImageView create_image_view(engine_data&,
+								  VkImage,
+								  VkFormat,
+								  VkImageAspectFlags);
 
 	/* PIPELINE */
 	void create_render_pass(engine_data&);
@@ -83,7 +86,7 @@ namespace liboceanlight::engine
 	void create_texture_sampler(engine_data&);
 
 	/* VERTEX BUFFER */
-	void create_vertex_buffer(engine_data&);
+	void create_vertex_buffers(engine_data&);
 	uint32_t find_mem_type(engine_data&, uint32_t, VkMemoryPropertyFlags);
 	void create_buffer(engine_data&,
 					   VkDeviceSize,
@@ -94,7 +97,7 @@ namespace liboceanlight::engine
 	void copy_buffer(engine_data&, VkBuffer, VkBuffer, VkDeviceSize);
 
 	/* INDEX BUFFER */
-	void create_index_buffer(engine_data&);
+	void create_index_buffers(engine_data&);
 
 	/* UNIFORM BUFFER */
 	void create_uniform_buffers(engine_data&);
@@ -102,5 +105,11 @@ namespace liboceanlight::engine
 	/* DESCRIPTOR */
 	void create_descriptor_pool(engine_data&);
 	void create_descriptor_sets(engine_data&);
+
+	/* DEPTH BUFFER */
+	void create_depth_resources(engine_data&);
+
+	/* MODELS */
+	void load_models(engine_data&);
 } /* namespace liboceanlight::engine */
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

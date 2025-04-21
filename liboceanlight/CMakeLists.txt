@@ -3,7 +3,8 @@ configure_file(config.h.in config.h)
 include(CTest)
 add_library(liboceanlight STATIC
             src/lol_version.cc src/lol_engine_init.cc src/lol_window.cc src/lol_engine.cc src/lol_engine_shutdown.cc
-            src/lol_debug_messenger.cc src/lol_glfw_callbacks.cc src/lol_utility.cc src/lol_version.cc src/stb_impl.cc)
+            src/lol_debug_messenger.cc src/lol_glfw_callbacks.cc src/lol_utility.cc src/lol_version.cc src/stb_impl.cc
+            src/tinyobjloader_impl.cc)
 set_target_properties(liboceanlight PROPERTIES CMAKE_CXX_VISIBILITY_PRESET hidden CMAKE_VISIBILITY_INLINES_HIDDEN yes)
 target_compile_definitions(liboceanlight PRIVATE $<$<CONFIG:Debug>:DEBUG_BUILD>)
 
@@ -28,11 +29,15 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/glfw/glfw)
 FetchContent_MakeAvailable(glfw)
 
+set(GLM_ENABLE_CXX_20 ON)
 FetchContent_Declare(
     glm
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/glm
     GIT_REPOSITORY https://github.com/g-truc/glm)
 FetchContent_MakeAvailable(glm)
+target_compile_definitions(glm PUBLIC GLM_FORCE_SILENT_WARNINGS)
+target_compile_definitions(glm PUBLIC GLM_BUILD_TESTS=OFF)
+target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
 
 FetchContent_Declare(
     stb
@@ -40,8 +45,26 @@ FetchContent_Declare(
     URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
     DOWNLOAD_NO_EXTRACT TRUE)
 FetchContent_MakeAvailable(stb)
-add_library(stb STATIC src/stb_impl.cc ${CMAKE_CURRENT_BINARY_DIR}/external/stb/src/stb_image.h)
-target_include_directories(stb PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/external/stb/src")
+add_library(stb INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/stb/src/stb_image.h)
+target_include_directories(stb INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/stb/src")
+
+FetchContent_Declare(
+    tinyobjloader
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader
+    URL https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/release/tiny_obj_loader.h
+    DOWNLOAD_NO_EXTRACT TRUE)
+FetchContent_MakeAvailable(tinyobjloader)
+add_library(tinyobjloader INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader/src/tiny_obj_loader.h)
+target_include_directories(tinyobjloader INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader/src")
+
+FetchContent_Declare(
+    tinygltf
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf
+    URL https://raw.githubusercontent.com/syoyo/tinygltf/release/tiny_gltf.h
+    DOWNLOAD_NO_EXTRACT TRUE)
+FetchContent_MakeAvailable(tinygltf)
+add_library(tinygltf INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf/src/tiny_gltf.h)
+target_include_directories(tinygltf INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf/src")
 
 FetchContent_Declare(
     googletest
@@ -71,7 +94,7 @@ add_custom_target(shaders ALL DEPENDS ${SPV_SHADERS})
 add_dependencies(liboceanlight shaders)
 
 target_include_directories(liboceanlight PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_BINARY_DIR}" ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} Microsoft.GSL::GSL glfw glm stb)
+target_link_libraries(liboceanlight PUBLIC ${Vulkan_LIBRARIES} Microsoft.GSL::GSL glfw glm::glm stb tinyobjloader tinygltf)
 
 if (BUILD_TESTING)
     add_subdirectory(test)

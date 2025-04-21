@@ -1,4 +1,5 @@
 #include <gsl/gsl>
+#include <iostream>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
@@ -20,8 +21,7 @@ void liboceanlight::engine::deinitialize(engine_data& eng_data)
 	cleanup_swapchain(eng_data);
 	cleanup_images(eng_data);
 	cleanup_descriptor_pool(eng_data);
-	cleanup_vertex_buffer(eng_data);
-	cleanup_index_buffer(eng_data);
+	models::cleanup_models(eng_data, eng_data.model_list);
 	cleanup_uniform_buffers(eng_data);
 	cleanup_surface(eng_data);
 	cleanup_logical_device(eng_data);
@@ -98,6 +98,12 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 
 void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 {
+	vkDestroyImageView(eng_data.logical_device,
+					   eng_data.depth_img_view,
+					   nullptr);
+	vkDestroyImage(eng_data.logical_device, eng_data.depth_img, nullptr);
+	vkFreeMemory(eng_data.logical_device, eng_data.depth_img_mem, nullptr);
+
 	const std::vector<int>::size_type fb_n = eng_data.frame_buffers.size();
 	for (std::vector<int>::size_type i {0}; i < fb_n; ++i)
 	{
@@ -106,7 +112,7 @@ void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 							 nullptr);
 	}
 
-	const std::vector<int>::size_type iv_n = eng_data.image_views.size();
+	const std::vector<int>::size_type iv_n {eng_data.image_views.size()};
 	for (std::vector<int>::size_type i {0}; i < iv_n; ++i)
 	{
 		vkDestroyImageView(eng_data.logical_device,
@@ -170,37 +176,51 @@ void liboceanlight::engine::cleanup_uniform_buffers(engine_data& eng_data)
 	}
 }
 
-void liboceanlight::engine::cleanup_vertex_buffer(engine_data& eng_data)
+void liboceanlight::engine::cleanup_vertex_buffer(
+	engine_data& eng_data,
+	VkBuffer& vertex_buffer,
+	VkDeviceMemory& vertex_buffer_mem)
 {
-	if (eng_data.vertex_buffer)
+	if (vertex_buffer)
 	{
-		vkDestroyBuffer(eng_data.logical_device,
-						eng_data.vertex_buffer,
-						nullptr);
+		vkDestroyBuffer(eng_data.logical_device, vertex_buffer, nullptr);
 	}
 
-	if (eng_data.vertex_buffer_mem)
+	if (vertex_buffer_mem)
 	{
-		vkFreeMemory(eng_data.logical_device,
-					 eng_data.vertex_buffer_mem,
-					 nullptr);
+		vkFreeMemory(eng_data.logical_device, vertex_buffer_mem, nullptr);
 	}
 }
 
-void liboceanlight::engine::cleanup_index_buffer(engine_data& eng_data)
+void liboceanlight::engine::cleanup_index_buffer(
+	engine_data& eng_data,
+	VkBuffer& index_buffer,
+	VkDeviceMemory& index_buffer_mem)
 {
-	if (eng_data.index_buffer)
+	if (index_buffer)
 	{
-		vkDestroyBuffer(eng_data.logical_device,
-						eng_data.index_buffer,
-						nullptr);
+		vkDestroyBuffer(eng_data.logical_device, index_buffer, nullptr);
 	}
 
-	if (eng_data.index_buffer_mem)
+	if (index_buffer_mem)
 	{
-		vkFreeMemory(eng_data.logical_device,
-					 eng_data.index_buffer_mem,
-					 nullptr);
+		vkFreeMemory(eng_data.logical_device, index_buffer_mem, nullptr);
+	}
+}
+
+void liboceanlight::models::cleanup_models(
+	engine_data& eng_data,
+	std::vector<liboceanlight::models::lol_model>& models)
+{
+	for (int i {0}; i < models.size(); ++i)
+	{
+		cleanup_vertex_buffer(eng_data,
+							  models[i].vertex_buffer,
+							  models[i].vertex_buffer_mem);
+
+		cleanup_index_buffer(eng_data,
+							 models[i].index_buffer,
+							 models[i].index_buffer_mem);
 	}
 }
 

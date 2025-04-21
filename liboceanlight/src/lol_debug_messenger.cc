@@ -1,5 +1,5 @@
 #include <config.h>
-#include <iostream>
+#include <print>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine.hpp>
 #include <vulkan/vulkan.h>
@@ -10,7 +10,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL liboceanlight::engine::dbg_messenger_callback(
 	const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
 	void* user_data)
 {
-	std::cout << "⦕ VLDN ⦖ " << callback_data->pMessage << "\n";
+	std::print("⟪ VALIDATION ⟫ {0}\n", callback_data->pMessage);
 
 	return VK_FALSE;
 }
