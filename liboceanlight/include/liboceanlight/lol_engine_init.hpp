@@ -86,7 +86,7 @@ namespace liboceanlight::engine
 	void create_texture_sampler(engine_data&);
 
 	/* VERTEX BUFFER */
-	void create_vertex_buffer(engine_data&);
+	void create_vertex_buffers(engine_data&);
 	uint32_t find_mem_type(engine_data&, uint32_t, VkMemoryPropertyFlags);
 	void create_buffer(engine_data&,
 					   VkDeviceSize,
@@ -97,7 +97,7 @@ namespace liboceanlight::engine
 	void copy_buffer(engine_data&, VkBuffer, VkBuffer, VkDeviceSize);
 
 	/* INDEX BUFFER */
-	void create_index_buffer(engine_data&);
+	void create_index_buffers(engine_data&);
 
 	/* UNIFORM BUFFER */
 	void create_uniform_buffers(engine_data&);
@@ -108,5 +108,8 @@ namespace liboceanlight::engine
 
 	/* DEPTH BUFFER */
 	void create_depth_resources(engine_data&);
+
+	/* MODELS */
+	void load_models(engine_data&);
 } /* namespace liboceanlight::engine */
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

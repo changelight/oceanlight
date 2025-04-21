@@ -2,7 +2,9 @@
 #include <array>
 #include <config.h>
 #include <cstring>
+#include <filesystem>
 #include <gsl/gsl>
+#include <iostream>
 #include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
@@ -10,8 +12,12 @@
 #include <liboceanlight/lol_utility.hpp>
 #include <span>
 #include <stb_image.h>
+#include <tiny_gltf.h>
+#include <tiny_obj_loader.h>
+#include <unordered_map>
 #include <vector>
 
+namespace fs = std::filesystem;
 using namespace liboceanlight::engine;
 
 int liboceanlight::engine::init(liboceanlight::window& w,
@@ -31,7 +37,6 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_render_pass(eng_data);
 	create_descriptor_set_layout(eng_data);
 	create_pipeline(eng_data);
-	// create_framebuffers(eng_data);
 
 	create_cmd_pool(eng_data);
 	create_depth_resources(eng_data);
@@ -39,8 +44,10 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_texture_img(eng_data);
 	create_texture_img_view(eng_data);
 	create_texture_sampler(eng_data);
-	create_vertex_buffer(eng_data);
-	create_index_buffer(eng_data);
+
+	load_models(eng_data);
+	create_vertex_buffers(eng_data);
+	create_index_buffers(eng_data);
 	create_uniform_buffers(eng_data);
 	create_descriptor_pool(eng_data);
 	create_descriptor_sets(eng_data);
@@ -91,7 +98,7 @@ void liboceanlight::engine::create_instance(engine_data& eng_data)
 
 	if (rv != VK_SUCCESS)
 	{
-		throw std::runtime_error("Failed to create vulkan instance.");
+		throw std::runtime_error("Failed to create vulkan instance");
 	}
 
 	if (eng_data.validation_layer_enabled)
@@ -103,7 +110,7 @@ void liboceanlight::engine::create_instance(engine_data& eng_data)
 
 		if (rv != VK_SUCCESS)
 		{
-			throw std::runtime_error("Failed to create debug messenger.");
+			throw std::runtime_error("Failed to create debug messenger");
 		}
 	}
 }
@@ -328,7 +335,7 @@ void liboceanlight::engine::get_swapchain_details(
 	eng_data.present_mode = VK_PRESENT_MODE_FIFO_KHR;
 	for (const auto& available_present_mode : present_modes)
 	{
-		if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+		if (available_present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
 		{
 			eng_data.present_mode = available_present_mode;
 		}
@@ -792,7 +799,7 @@ void liboceanlight::engine::create_depth_resources(engine_data& eng_data)
 void liboceanlight::engine::create_texture_img(engine_data& eng_data)
 {
 	int width {}, height {}, channels {}, bytes_per_pixel {STBI_rgb_alpha};
-	const char* path {TEXTURE_PATH "image.jpg"};
+	const char* path {TEXTURE_PATH "viking_room.png"};
 
 	stbi_uc* pixels {nullptr};
 	pixels = stbi_load(path, &width, &height, &channels, bytes_per_pixel);
@@ -841,6 +848,7 @@ void liboceanlight::engine::create_texture_img(engine_data& eng_data)
 						  VK_FORMAT_R8G8B8A8_SRGB,
 						  VK_IMAGE_LAYOUT_UNDEFINED,
 						  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
 	copy_buffer_to_img(eng_data,
 					   staging_buff,
 					   eng_data.texture_img,
@@ -1106,24 +1114,90 @@ void liboceanlight::engine::create_texture_sampler(engine_data& eng_data)
 	}
 }
 
-void liboceanlight::engine::create_vertex_buffer(engine_data& eng_data)
+void liboceanlight::engine::load_models(engine_data& eng_data)
 {
-	upload_buffer(eng_data,
-				  vertices.data(),
-				  sizeof(vertices[0]) * vertices.size(),
-				  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				  eng_data.vertex_buffer,
-				  eng_data.vertex_buffer_mem);
+	for (const auto& file : fs::directory_iterator(MODEL_PATH))
+	{
+		eng_data.model_list.emplace_back(file.path().filename().string());
+		std::cout << "Loaded model " << file.path().filename() << "\n";
+	}
+
+	for (auto& model : eng_data.model_list)
+	{
+		std::string model_file {MODEL_PATH + model.name};
+		tinyobj::attrib_t attrib;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+
+		auto rv = tinyobj::LoadObj(&attrib,
+								   &shapes,
+								   &materials,
+								   &warn,
+								   &err,
+								   model_file.c_str());
+
+		if (!rv)
+		{
+			throw std::runtime_error("Failed to load model " + model_file +
+									 "\n" + warn + err);
+		}
+
+		std::unordered_map<vertex, uint32_t> unique_vertices {};
+
+		for (const auto& shape : shapes)
+		{
+			for (const auto& index : shape.mesh.indices)
+			{
+				vertex vertex {};
+
+				vertex.pos = {attrib.vertices[3 * index.vertex_index + 0],
+							  attrib.vertices[3 * index.vertex_index + 1],
+							  attrib.vertices[3 * index.vertex_index + 2]};
+
+				vertex.texcoord = {
+					attrib.texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+
+				vertex.color = {1.0f, 1.0f, 1.0f};
+
+				if (unique_vertices.count(vertex) == 0)
+				{
+					unique_vertices[vertex] = static_cast<uint32_t>(
+						model.vertices.size());
+					model.vertices.push_back(vertex);
+				}
+
+				model.indices.push_back(unique_vertices[vertex]);
+			}
+		}
+	}
 }
 
-void liboceanlight::engine::create_index_buffer(engine_data& eng_data)
+void liboceanlight::engine::create_vertex_buffers(engine_data& eng_data)
 {
-	upload_buffer(eng_data,
-				  indices.data(),
-				  sizeof(indices[0]) * indices.size(),
-				  VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-				  eng_data.index_buffer,
-				  eng_data.index_buffer_mem);
+	for (auto& model : eng_data.model_list)
+	{
+		upload_buffer(eng_data,
+					  model.vertices.data(),
+					  sizeof(model.vertices[0]) * model.vertices.size(),
+					  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+					  model.vertex_buffer,
+					  model.vertex_buffer_mem);
+	}
+}
+
+void liboceanlight::engine::create_index_buffers(engine_data& eng_data)
+{
+	for (auto& model : eng_data.model_list)
+	{
+		upload_buffer(eng_data,
+					  model.indices.data(),
+					  sizeof(model.indices[0]) * model.indices.size(),
+					  VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+					  model.index_buffer,
+					  model.index_buffer_mem);
+	}
 }
 
 void liboceanlight::engine::create_uniform_buffers(engine_data& eng_data)
@@ -1536,14 +1610,9 @@ std::vector<const char*> liboceanlight::engine::get_required_extensions()
 {
 	uint32_t count {0};
 	const char** extensions = glfwGetRequiredInstanceExtensions(&count);
-	if (!extensions)
+	if (!extensions | !count)
 	{
 		throw std::runtime_error("Failed to get required extensions");
-	}
-
-	if (count == 0)
-	{
-		return {};
 	}
 
 	std::span span {extensions, count};

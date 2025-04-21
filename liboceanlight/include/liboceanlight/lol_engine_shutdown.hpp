@@ -12,8 +12,8 @@ namespace liboceanlight::engine
 	void cleanup_surface(engine_data&);
 	void cleanup_swapchain(engine_data&);
 	void cleanup_images(engine_data&);
-	void cleanup_vertex_buffer(engine_data&);
-	void cleanup_index_buffer(engine_data&);
+	void cleanup_vertex_buffer(engine_data&, VkBuffer&, VkDeviceMemory&);
+	void cleanup_index_buffer(engine_data&, VkBuffer&, VkDeviceMemory&);
 	void cleanup_uniform_buffers(engine_data&);
 	void cleanup_descriptor_pool(engine_data&);
 	void cleanup_pipeline(engine_data&);
@@ -23,4 +23,10 @@ namespace liboceanlight::engine
 	void deinitialize(engine_data&);
 	void shutdown(engine_data&);
 } /* namespace liboceanlight::engine */
+
+namespace liboceanlight::models
+{
+	void cleanup_models(liboceanlight::engine::engine_data&,
+						std::vector<lol_model>&);
+} /* namespace liboceanlight::models */
 #endif /* LIBOCEANLIGHT_ENGINE_SHUTDOWN_HPP_INCLUDED */
