@@ -279,7 +279,7 @@ void liboceanlight::engine::update_uniform_buffer(
 							glm::vec3(0.0f, 1.0f, 0.0f));
 
 	ubo.model = glm::rotate(ubo.model,
-							sin(time) * glm::radians(angle),
+							(float)(sin(time) * glm::radians(angle)),
 							glm::vec3(0.0f, 1.0f, 0.0f));
 
 	update_camera(window, static_cast<float>(dt));

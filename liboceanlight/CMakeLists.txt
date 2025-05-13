@@ -37,7 +37,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 target_compile_definitions(glm PUBLIC GLM_FORCE_SILENT_WARNINGS)
 target_compile_definitions(glm PUBLIC GLM_BUILD_TESTS=OFF)
-target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
 
 FetchContent_Declare(
     stb
@@ -81,6 +80,7 @@ find_package(Vulkan REQUIRED)
 
 set(SHADER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_DST_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(MAKE_DIRECTORY ${SHADER_DST_DIR})
 file(GLOB SHADERS ${SHADER_SRC_DIR}/*.vert ${SHADER_SRC_DIR}/*.frag)
 foreach(SHADER IN LISTS SHADERS)
     get_filename_component(FILENAME ${SHADER} NAME_WE)

@@ -251,7 +251,7 @@ void liboceanlight::engine::get_swapchain_details(
 		throw std::runtime_error("Failed to get surface capabilities");
 	}
 
-	if (eng_data.capabilities.currentExtent.width ==
+	if (eng_data.capabilities.currentExtent.width !=
 		std::numeric_limits<uint32_t>::max())
 	{
 		eng_data.swap_extent = eng_data.capabilities.currentExtent;
