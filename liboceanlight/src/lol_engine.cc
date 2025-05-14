@@ -213,6 +213,7 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 							   1,
 							   vertex_buffers.data(),
 							   &offsets);
+							   
 		vkCmdBindIndexBuffer(cmd_buffer,
 							 model.index_buffer,
 							 0,
@@ -275,11 +276,11 @@ void liboceanlight::engine::update_uniform_buffer(
 	const float angle {35.0f}, initial_angle {-90.0f + -45.0f};
 
 	ubo.model = glm::rotate(ubo.model,
-							glm::radians(initial_angle),
+							(float)(glm::radians(initial_angle)),
 							glm::vec3(0.0f, 1.0f, 0.0f));
 
 	ubo.model = glm::rotate(ubo.model,
-							sin(time) * glm::radians(angle),
+							(float)(sin(time) * glm::radians(angle)),
 							glm::vec3(0.0f, 1.0f, 0.0f));
 
 	update_camera(window, static_cast<float>(dt));

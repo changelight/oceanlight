@@ -2,6 +2,7 @@
 BasedOnStyle: Microsoft
 ColumnLimit: 79
 UseTab: Always
+SortIncludes: Never
 PointerAlignment: Left
 ReferenceAlignment: Left
 #AlignAfterOpenBracket: Align
@@ -9,7 +10,7 @@ AlignOperands: Align
 AllowAllArgumentsOnNextLine: False
 AllowAllParametersOfDeclarationOnNextLine: False
 BinPackArguments: False
-BinPackParameters: False
+BinPackParameters: OnePerLine
 BreakConstructorInitializers: AfterColon
 NamespaceIndentation: All
 PackConstructorInitializers: CurrentLine

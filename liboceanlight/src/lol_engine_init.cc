@@ -12,10 +12,12 @@
 #include <liboceanlight/lol_utility.hpp>
 #include <span>
 #include <stb_image.h>
+#include <stdexcept>
 #include <tiny_gltf.h>
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 #include <vector>
+#include <liboceanlight/lol_instance.hpp>
 
 namespace fs = std::filesystem;
 using namespace liboceanlight::engine;
@@ -23,7 +25,11 @@ using namespace liboceanlight::engine;
 int liboceanlight::engine::init(liboceanlight::window& w,
 								engine_data& eng_data)
 {
-	create_instance(eng_data);
+	create_instance_new();
+	eng_data.vulkan_instance = inst_data.vulkan_instance;
+	eng_data.dbg_messenger = inst_data.dbg_messenger;
+	eng_data.validation_layer_enabled = inst_data.validation_layer_enabled;
+	//create_instance(eng_data);
 	create_physical_device(eng_data);
 
 	create_surface(w, eng_data);
@@ -338,6 +344,7 @@ void liboceanlight::engine::get_swapchain_details(
 		if (available_present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
 		{
 			eng_data.present_mode = available_present_mode;
+			break;
 		}
 	}
 }
@@ -345,11 +352,15 @@ void liboceanlight::engine::get_swapchain_details(
 void liboceanlight::engine::create_swapchain(engine_data& eng_data)
 {
 	uint32_t img_count = eng_data.capabilities.minImageCount + 1;
-	uint32_t max = eng_data.capabilities.maxImageCount;
+	uint32_t max_img_count = eng_data.capabilities.maxImageCount;
 
-	if (max > 0 && img_count > max)
+	if (max_img_count > 0)
 	{
-		img_count = max;
+		img_count = std::max(img_count, max_img_count);
+	}
+	else
+	{
+		throw std::runtime_error("Error: Max swapchain image count is 0.");
 	}
 
 	VkSwapchainCreateInfoKHR c_info {};
@@ -1622,26 +1633,43 @@ std::vector<const char*> liboceanlight::engine::get_required_extensions()
 void liboceanlight::engine::check_inst_ext_support(
 	const std::vector<const char*>& required)
 {
-	const std::vector<std::string> supported = get_supported_inst_exts();
-	unsigned int supported_extension_count {0};
+	uint32_t count {0};
+	auto rv = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to get instance extensions (count)");
+	}
+
+	std::vector<VkExtensionProperties> extension_properties(count);
+	vkEnumerateInstanceExtensionProperties(nullptr,
+										   &count,
+										   extension_properties.data());
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to get instance extensions (props)");
+	}
+
+	unsigned int valid_extension_count {0};
 	for (auto required_ext : required)
 	{
-		for (auto supported_ext : supported)
+		for (int i {0}; i < extension_properties.size(); ++i)
 		{
-			if (strcmp(required_ext, supported_ext.c_str()) == 0)
+			if (strcmp(required_ext, extension_properties[i].extensionName) ==
+				0)
 			{
-				++supported_extension_count;
+				++valid_extension_count;
 			}
 		}
 	}
 
-	if (supported_extension_count != required.size())
+	if (valid_extension_count != required.size())
 	{
 		throw std::runtime_error("Not all extensions supported");
 	}
 }
 
-const std::vector<std::string> liboceanlight::engine::get_supported_inst_exts()
+void liboceanlight::engine::get_supported_inst_exts(
+	std::vector<const char*>& supported_exts)
 {
 	uint32_t count {0};
 	auto rv = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
@@ -1659,25 +1687,35 @@ const std::vector<std::string> liboceanlight::engine::get_supported_inst_exts()
 		throw std::runtime_error("Failed to get instance extensions (props)");
 	}
 
-	std::vector<std::string> supported_exts;
 	for (auto extension_prop : extension_properties)
 	{
-		supported_exts.emplace_back(extension_prop.extensionName);
+		supported_exts.push_back(extension_prop.extensionName);
 	}
-
-	return supported_exts;
 }
 
 void liboceanlight::engine::check_layer_support(
 	const std::vector<const char*>& required)
 {
-	const std::vector<std::string> supported = get_supported_layers();
+	uint32_t count {0};
+	auto rv = vkEnumerateInstanceLayerProperties(&count, nullptr);
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to enumerate layers (count)");
+	}
+
+	std::vector<VkLayerProperties> layer_properties(count);
+	vkEnumerateInstanceLayerProperties(&count, layer_properties.data());
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to enumerate layers (props)");
+	}
+
 	unsigned int supported_layer_count {0};
 	for (auto required_layer : required)
 	{
-		for (auto supported_layer : supported)
+		for (int i {0}; i < layer_properties.size(); ++i)
 		{
-			if (strcmp(required_layer, supported_layer.c_str()) == 0)
+			if (strcmp(required_layer, layer_properties[i].layerName) == 0)
 			{
 				++supported_layer_count;
 			}

@@ -18,7 +18,7 @@ namespace liboceanlight::engine
 	void set_inst_create_info(VkInstanceCreateInfo&);
 	std::vector<const char*> get_required_extensions();
 	void check_inst_ext_support(const std::vector<const char*>&);
-	const std::vector<std::string> get_supported_inst_exts();
+	void get_supported_inst_exts(std::vector<const char*>&);
 	void check_layer_support(const std::vector<const char*>&);
 	const std::vector<std::string> get_supported_layers();
 

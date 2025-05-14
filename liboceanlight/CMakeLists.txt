@@ -2,7 +2,7 @@ project(liboceanlight VERSION 0.0.1 LANGUAGES CXX)
 configure_file(config.h.in config.h)
 include(CTest)
 add_library(liboceanlight STATIC
-            src/lol_version.cc src/lol_engine_init.cc src/lol_window.cc src/lol_engine.cc src/lol_engine_shutdown.cc
+            src/lol_version.cc src/lol_instance.cc src/lol_engine_init.cc src/lol_window.cc src/lol_engine.cc src/lol_engine_shutdown.cc
             src/lol_debug_messenger.cc src/lol_glfw_callbacks.cc src/lol_utility.cc src/lol_version.cc src/stb_impl.cc
             src/tinyobjloader_impl.cc)
 set_target_properties(liboceanlight PROPERTIES CMAKE_CXX_VISIBILITY_PRESET hidden CMAKE_VISIBILITY_INLINES_HIDDEN yes)
@@ -37,7 +37,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 target_compile_definitions(glm PUBLIC GLM_FORCE_SILENT_WARNINGS)
 target_compile_definitions(glm PUBLIC GLM_BUILD_TESTS=OFF)
-target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
+#target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
 
 FetchContent_Declare(
     stb
@@ -81,6 +81,7 @@ find_package(Vulkan REQUIRED)
 
 set(SHADER_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SHADER_DST_DIR ${CMAKE_CURRENT_BINARY_DIR}/shaders)
+file(MAKE_DIRECTORY ${SHADER_DST_DIR})
 file(GLOB SHADERS ${SHADER_SRC_DIR}/*.vert ${SHADER_SRC_DIR}/*.frag)
 foreach(SHADER IN LISTS SHADERS)
     get_filename_component(FILENAME ${SHADER} NAME_WE)
