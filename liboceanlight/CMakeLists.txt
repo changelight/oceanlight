@@ -37,7 +37,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glm)
 target_compile_definitions(glm PUBLIC GLM_FORCE_SILENT_WARNINGS)
 target_compile_definitions(glm PUBLIC GLM_BUILD_TESTS=OFF)
-#target_compile_options(glm PUBLIC "-Wno-unsafe-buffer-usage")
 
 FetchContent_Declare(
     stb
