@@ -1,6 +1,7 @@
 #ifndef LIBOCEANLIGHT_WINDOW_HPP_INCLUDED
 #define LIBOCEANLIGHT_WINDOW_HPP_INCLUDED
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 #include <config.h>
 #include <string>
 #include <utility>
@@ -13,7 +14,8 @@ namespace liboceanlight
 		std::string window_name {PROJECT_NAME};
 
 	  public:
-		GLFWwindow* window_pointer {nullptr};
+		GLFWwindow* window_pointer {nullptr};\
+		VkSurfaceKHR surface {nullptr};
 		bool framebuffer_resized {false};
 
 		window(int w, int h);
@@ -52,6 +54,7 @@ namespace liboceanlight
 			}
 		}
 
+		void create_surface(VkInstance&);
 		int should_close();
 	};
 } /* namespace liboceanlight */

@@ -1,3 +1,4 @@
+#include "liboceanlight/lol_instance.hpp"
 #include <GLFW/glfw3.h>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_glfw_callbacks.hpp>
@@ -55,5 +56,14 @@ namespace liboceanlight
 	int window::should_close()
 	{
 		return glfwWindowShouldClose(window_pointer);
+	}
+
+	void window::create_surface(VkInstance& i)
+	{
+		VkResult rv = glfwCreateWindowSurface(i, window_pointer, nullptr, &surface);
+		if (rv != VK_SUCCESS)
+		{
+			throw std::runtime_error("Failed to create surface");
+		}
 	}
 } /* namespace liboceanlight */
