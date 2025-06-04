@@ -3,8 +3,7 @@
 #include <liboceanlight/lol_device.hpp>
 #include <liboceanlight/lol_instance.hpp>
 
-using namespace liboceanlight::engine;
-device_data dev_data;
+liboceanlight::device::device_data dev_data;
 
 VkPhysicalDevice select_physical_device(std::vector<VkPhysicalDevice>& devs)
 {
@@ -106,7 +105,7 @@ void check_device_extension_support()
 	}
 }
 
-void liboceanlight::engine::check_device_queue_support(VkSurfaceKHR& surface)
+void liboceanlight::device::check_device_queue_support(VkSurfaceKHR& surface)
 {
 	uint32_t count {0};
 	vkGetPhysicalDeviceQueueFamilyProperties(dev_data.physical_device,
@@ -151,7 +150,7 @@ void liboceanlight::engine::check_device_queue_support(VkSurfaceKHR& surface)
 	}
 }
 
-void liboceanlight::engine::create_physical_device_new(VkInstance& instance)
+void liboceanlight::device::create_physical_device_new(VkInstance& instance)
 {
 	uint32_t count {0};
 	VkResult rv = vkEnumeratePhysicalDevices(instance, &count, nullptr);
@@ -174,4 +173,40 @@ void liboceanlight::engine::create_physical_device_new(VkInstance& instance)
 	}
 
 	check_device_extension_support();
+}
+
+void liboceanlight::device::create_logical_device_new()
+{
+	float queue_priority {1.0f};
+	VkDeviceQueueCreateInfo queue_info {};
+	queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queue_info.queueFamilyIndex = dev_data.graphics_queue_index;
+	queue_info.queueCount = 1;
+	queue_info.pQueuePriorities = &queue_priority;
+
+	VkPhysicalDeviceFeatures requested_dev_features {
+		.samplerAnisotropy = VK_TRUE};
+	VkDeviceCreateInfo dev_info {};
+	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	dev_info.queueCreateInfoCount = 1;
+	dev_info.pQueueCreateInfos = &queue_info;
+	dev_info.pEnabledFeatures = &requested_dev_features;
+	dev_info.enabledExtensionCount = static_cast<uint32_t>(
+		dev_data.dev_extensions.size());
+	dev_info.ppEnabledExtensionNames = dev_data.dev_extensions.data();
+
+	VkResult rv = vkCreateDevice(dev_data.physical_device,
+								 &dev_info,
+								 nullptr,
+								 &dev_data.logical_device);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create logical device");
+	}
+
+	vkGetDeviceQueue(dev_data.logical_device,
+					 dev_data.graphics_queue_index,
+					 0,
+					 &dev_data.graphics_queue);
 }

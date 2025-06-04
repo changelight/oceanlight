@@ -3,7 +3,7 @@
 #include <array>
 #include <vulkan/vulkan_core.h>
 
-namespace liboceanlight::engine
+namespace liboceanlight::device
 {
 	using device_data = struct lol_device_data_struct
 	{
@@ -18,7 +18,7 @@ namespace liboceanlight::engine
 	};
 	void check_device_queue_support(VkSurfaceKHR&);
 	void create_physical_device_new(VkInstance&);
+	void create_logical_device_new(void);
 } /* namespace liboceanlight::engine */
-extern liboceanlight::engine::device_data dev_data;
-
+extern liboceanlight::device::device_data dev_data;
 #endif /* LIBOCEANLIGHT_DEVICE_HPP_INCLUDED */

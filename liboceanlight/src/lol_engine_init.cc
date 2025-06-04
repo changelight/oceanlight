@@ -11,6 +11,7 @@
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
 #include <liboceanlight/lol_device.hpp>
+#include <liboceanlight/lol_swapchain.hpp>
 #include <stb_image.h>
 #include <stdexcept>
 #include <tiny_gltf.h>
@@ -25,24 +26,36 @@ using namespace liboceanlight::engine;
 int liboceanlight::engine::init(liboceanlight::window& w,
 								engine_data& eng_data)
 {
+	//create_instance(eng_data);
 	create_instance_new();
 	eng_data.vulkan_instance = inst_data.vulkan_instance;
 	eng_data.dbg_messenger = inst_data.dbg_messenger;
 	eng_data.validation_layer_enabled = inst_data.validation_layer_enabled;
-	//create_instance(eng_data);
-	create_physical_device_new(inst_data.vulkan_instance);
-	eng_data.physical_device = dev_data.physical_device;
-	//create_physical_device(eng_data);
 
+	//create_physical_device(eng_data);
+	device::create_physical_device_new(inst_data.vulkan_instance);
+	eng_data.physical_device = dev_data.physical_device;
+
+	//create_surface(w, eng_data);
 	w.create_surface(inst_data.vulkan_instance);
 	eng_data.window_surface = w.surface;
-	//create_surface(w, eng_data);
-	check_device_queue_support(w.surface);
-	eng_data.graphics_queue_index = dev_data.graphics_queue_index;
-	//get_queue_fams(eng_data);
-	create_logical_device(eng_data);
 
-	get_swapchain_details(w, eng_data);
+	//get_queue_fams(eng_data);
+	device::check_device_queue_support(w.surface);
+	eng_data.graphics_queue_index = dev_data.graphics_queue_index;
+
+	//create_logical_device(eng_data);
+	device::create_logical_device_new();
+	eng_data.logical_device = dev_data.logical_device;
+	eng_data.graphics_queue = dev_data.graphics_queue;
+
+	//get_swapchain_details(window, eng_data);
+	swapchain::get_swapchain_details_new(w);
+	eng_data.capabilities = w.surface_capabilities;
+	eng_data.swap_extent = swap_data.swap_extent;
+	eng_data.present_mode = swap_data.present_mode;
+	eng_data.surface_format = w.surface_format;
+	
 	create_swapchain(eng_data);
 	create_image_views(eng_data);
 
@@ -67,148 +80,6 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_sync_objects(eng_data);
 
 	return 1;
-}
-
-void liboceanlight::engine::create_logical_device(engine_data& eng_data)
-{
-	float queue_priority {1.0f};
-	VkDeviceQueueCreateInfo queue_info {};
-	queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queue_info.queueFamilyIndex = eng_data.graphics_queue_index;
-	queue_info.queueCount = 1;
-	queue_info.pQueuePriorities = &queue_priority;
-
-	VkPhysicalDeviceFeatures requested_dev_features {
-		.samplerAnisotropy = VK_TRUE};
-	VkDeviceCreateInfo dev_info {};
-	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	dev_info.queueCreateInfoCount = 1;
-	dev_info.pQueueCreateInfos = &queue_info;
-	dev_info.pEnabledFeatures = &requested_dev_features;
-	dev_info.enabledExtensionCount = static_cast<uint32_t>(
-		eng_data.dev_extensions.size());
-	dev_info.ppEnabledExtensionNames = eng_data.dev_extensions.data();
-
-	VkResult rv = vkCreateDevice(eng_data.physical_device,
-								 &dev_info,
-								 nullptr,
-								 &eng_data.logical_device);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create logical device");
-	}
-
-	vkGetDeviceQueue(eng_data.logical_device,
-					 eng_data.graphics_queue_index,
-					 0,
-					 &eng_data.graphics_queue);
-}
-
-void liboceanlight::engine::get_swapchain_details(
-	liboceanlight::window& window,
-	engine_data& eng_data)
-{
-	VkResult rv = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-		eng_data.physical_device,
-		eng_data.window_surface,
-		&eng_data.capabilities);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to get surface capabilities");
-	}
-
-	if (eng_data.capabilities.currentExtent.width !=
-		std::numeric_limits<uint32_t>::max())
-	{
-		eng_data.swap_extent = eng_data.capabilities.currentExtent;
-	}
-	else
-	{
-		int width {}, height {};
-		glfwGetFramebufferSize(window.window_pointer, &width, &height);
-
-		VkExtent2D actual_extent {static_cast<uint32_t>(width),
-								  static_cast<uint32_t>(height)};
-
-		actual_extent.width = std::clamp(
-			actual_extent.width,
-			eng_data.capabilities.minImageExtent.width,
-			eng_data.capabilities.maxImageExtent.width);
-
-		actual_extent.height = std::clamp(
-			actual_extent.height,
-			eng_data.capabilities.minImageExtent.height,
-			eng_data.capabilities.maxImageExtent.height);
-
-		eng_data.swap_extent = actual_extent;
-	}
-
-	uint32_t count {};
-	vkGetPhysicalDeviceSurfaceFormatsKHR(eng_data.physical_device,
-										 eng_data.window_surface,
-										 &count,
-										 nullptr);
-
-	if (count == 0)
-	{
-		throw std::runtime_error("No surface formats found");
-	}
-
-	std::vector<VkSurfaceFormatKHR> surface_formats(count);
-	rv = vkGetPhysicalDeviceSurfaceFormatsKHR(eng_data.physical_device,
-											  eng_data.window_surface,
-											  &count,
-											  surface_formats.data());
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to get surface formats");
-	}
-
-	eng_data.surface_format = surface_formats[0];
-	for (const auto& available_format : surface_formats)
-	{
-		if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB &&
-			available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-		{
-			eng_data.surface_format = available_format;
-			break;
-		}
-	}
-
-	count = 0;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(eng_data.physical_device,
-											  eng_data.window_surface,
-											  &count,
-											  nullptr);
-
-	if (count == 0)
-	{
-		throw std::runtime_error("No surface present modes found");
-	}
-
-	std::vector<VkPresentModeKHR> present_modes(count);
-	rv = vkGetPhysicalDeviceSurfacePresentModesKHR(eng_data.physical_device,
-												   eng_data.window_surface,
-												   &count,
-												   present_modes.data());
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to get surface present modes");
-	}
-
-	eng_data.present_mode = VK_PRESENT_MODE_FIFO_KHR;
-	for (const auto& available_present_mode : present_modes)
-	{
-		if (available_present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
-		{
-			eng_data.present_mode = available_present_mode;
-			break;
-		}
-	}
 }
 
 void liboceanlight::engine::create_swapchain(engine_data& eng_data)

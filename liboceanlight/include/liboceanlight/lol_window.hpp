@@ -14,8 +14,10 @@ namespace liboceanlight
 		std::string window_name {PROJECT_NAME};
 
 	  public:
-		GLFWwindow* window_pointer {nullptr};\
+		GLFWwindow* window_pointer {nullptr};
 		VkSurfaceKHR surface {nullptr};
+		VkSurfaceCapabilitiesKHR surface_capabilities {};
+		VkSurfaceFormatKHR surface_format {};
 		bool framebuffer_resized {false};
 
 		window(int w, int h);
