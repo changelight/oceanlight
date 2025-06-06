@@ -17,8 +17,8 @@ namespace liboceanlight::device
 		VkQueue graphics_queue {nullptr};
 	};
 	void check_device_queue_support(VkSurfaceKHR&);
-	void create_physical_device_new(VkInstance&);
-	void create_logical_device_new(void);
-} /* namespace liboceanlight::engine */
+	void create_physical_device(VkInstance&);
+	void create_logical_device(void);
+} /* namespace liboceanlight::device */
 extern liboceanlight::device::device_data dev_data;
 #endif /* LIBOCEANLIGHT_DEVICE_HPP_INCLUDED */

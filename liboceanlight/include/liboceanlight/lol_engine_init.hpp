@@ -38,17 +38,17 @@ namespace liboceanlight::engine
 	void create_logical_device(engine_data&);
 
 	/* SWAPCHAIN */
-	void get_swapchain_details(liboceanlight::window&, engine_data&);
+	//void get_swapchain_details(liboceanlight::window&, engine_data&);
 	VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR&);
 	void create_swapchain(engine_data&);
-	void create_image_views(engine_data&);
+	void create_image_views(engine_data&, liboceanlight::window&);
 	VkImageView create_image_view(engine_data&,
 								  VkImage,
 								  VkFormat,
 								  VkImageAspectFlags);
 
 	/* PIPELINE */
-	void create_render_pass(engine_data&);
+	//void create_render_pass(engine_data&, liboceanlight::window&);
 	void create_descriptor_set_layout(engine_data&);
 	void create_pipeline(engine_data&);
 	VkShaderModule create_shader(engine_data&, const std::vector<char>&);

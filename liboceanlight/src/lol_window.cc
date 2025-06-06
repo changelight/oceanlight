@@ -1,4 +1,4 @@
-#include "liboceanlight/lol_instance.hpp"
+#include <vulkan/vulkan_core.h>
 #include <GLFW/glfw3.h>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_glfw_callbacks.hpp>
@@ -6,7 +6,6 @@
 #include <stdexcept>
 #include <string>
 #include <iostream>
-#include <vulkan/vulkan.h>
 
 namespace liboceanlight
 {

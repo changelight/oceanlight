@@ -2,14 +2,15 @@
 #define LIBOCEANLIGHT_ENGINE_SHUTDOWN_HPP_INCLUDED
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
+#include <liboceanlight/lol_window.hpp>
 #include <vulkan/vulkan_core.h>
 
 namespace liboceanlight::engine
 {
 	void cleanup_debug_messenger(engine_data&);
-	void cleanup_instance(engine_data&);
+	void cleanup_instance(VkInstance&);
 	void cleanup_logical_device(engine_data&);
-	void cleanup_surface(engine_data&);
+	void cleanup_surface(VkSurfaceKHR&);
 	void cleanup_swapchain(engine_data&);
 	void cleanup_images(engine_data&);
 	void cleanup_vertex_buffer(engine_data&, VkBuffer&, VkDeviceMemory&);
@@ -20,8 +21,8 @@ namespace liboceanlight::engine
 	void cleanup_commands(engine_data&);
 	void cleanup_semaphores(engine_data&);
 	void cleanup_fences(engine_data&);
-	void deinitialize(engine_data&);
-	void shutdown(engine_data&);
+	void deinitialize(liboceanlight::window&, engine_data&);
+	void shutdown(liboceanlight::window&, engine_data&);
 } /* namespace liboceanlight::engine */
 
 namespace liboceanlight::models

@@ -1,18 +1,24 @@
+#include "liboceanlight/lol_engine.hpp"
 #include <gsl/gsl>
-#include <iostream>
+#include <vulkan/vulkan_core.h>
 #include <liboceanlight/lol_debug_messenger.hpp>
+#include <liboceanlight/lol_instance.hpp>
+#include <liboceanlight/lol_device.hpp>
+#include <liboceanlight/lol_swapchain.hpp>
+#include <liboceanlight/lol_pipeline.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
-#include <vulkan/vulkan.h>
 
 using namespace liboceanlight::engine;
 
-void liboceanlight::engine::shutdown(engine_data& eng_data)
+void liboceanlight::engine::shutdown(liboceanlight::window& w,
+									 engine_data& eng_data)
 {
-	deinitialize(eng_data);
+	deinitialize(w, eng_data);
 }
 
-void liboceanlight::engine::deinitialize(engine_data& eng_data)
+void liboceanlight::engine::deinitialize(liboceanlight::window& w,
+										 engine_data& eng_data)
 {
 	cleanup_fences(eng_data);
 	cleanup_semaphores(eng_data);
@@ -23,10 +29,10 @@ void liboceanlight::engine::deinitialize(engine_data& eng_data)
 	cleanup_descriptor_pool(eng_data);
 	models::cleanup_models(eng_data, eng_data.model_list);
 	cleanup_uniform_buffers(eng_data);
-	cleanup_surface(eng_data);
+	cleanup_surface(w.surface);
 	cleanup_logical_device(eng_data);
 	cleanup_debug_messenger(eng_data);
-	cleanup_instance(eng_data);
+	cleanup_instance(inst_data.vulkan_instance);
 }
 
 void liboceanlight::engine::cleanup_fences(engine_data& eng_data)
@@ -35,7 +41,7 @@ void liboceanlight::engine::cleanup_fences(engine_data& eng_data)
 	for (size_t i {0}; i < n; ++i)
 	{
 		vkDestroyFence(
-			eng_data.logical_device,
+			dev_data.logical_device,
 			gsl::at(eng_data.in_flight_fences, static_cast<long long>(i)),
 			nullptr);
 	}
@@ -47,7 +53,7 @@ void liboceanlight::engine::cleanup_semaphores(engine_data& eng_data)
 	for (size_t i {0}; i < signal_sems_n; ++i)
 	{
 		vkDestroySemaphore(
-			eng_data.logical_device,
+			dev_data.logical_device,
 			gsl::at(eng_data.signal_sems, static_cast<long long>(i)),
 			nullptr);
 	}
@@ -56,7 +62,7 @@ void liboceanlight::engine::cleanup_semaphores(engine_data& eng_data)
 	for (size_t i {0}; i < wait_sems_n; ++i)
 	{
 		vkDestroySemaphore(
-			eng_data.logical_device,
+			dev_data.logical_device,
 			gsl::at(eng_data.wait_sems, static_cast<long long>(i)),
 			nullptr);
 	}
@@ -66,7 +72,7 @@ void liboceanlight::engine::cleanup_commands(engine_data& eng_data)
 {
 	if (eng_data.command_pool)
 	{
-		vkDestroyCommandPool(eng_data.logical_device,
+		vkDestroyCommandPool(dev_data.logical_device,
 							 eng_data.command_pool,
 							 nullptr);
 	}
@@ -76,82 +82,82 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 {
 	if (eng_data.graphics_pipeline)
 	{
-		vkDestroyPipeline(eng_data.logical_device,
+		vkDestroyPipeline(dev_data.logical_device,
 						  eng_data.graphics_pipeline,
 						  nullptr);
 	}
 
 	if (eng_data.pipeline_layout)
 	{
-		vkDestroyPipelineLayout(eng_data.logical_device,
+		vkDestroyPipelineLayout(dev_data.logical_device,
 								eng_data.pipeline_layout,
 								nullptr);
 	}
 
-	if (eng_data.render_pass)
+	if (pipe_data.render_pass)
 	{
-		vkDestroyRenderPass(eng_data.logical_device,
-							eng_data.render_pass,
+		vkDestroyRenderPass(dev_data.logical_device,
+							pipe_data.render_pass,
 							nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 {
-	vkDestroyImageView(eng_data.logical_device,
+	vkDestroyImageView(dev_data.logical_device,
 					   eng_data.depth_img_view,
 					   nullptr);
-	vkDestroyImage(eng_data.logical_device, eng_data.depth_img, nullptr);
-	vkFreeMemory(eng_data.logical_device, eng_data.depth_img_mem, nullptr);
+	vkDestroyImage(dev_data.logical_device, eng_data.depth_img, nullptr);
+	vkFreeMemory(dev_data.logical_device, eng_data.depth_img_mem, nullptr);
 
 	const std::vector<int>::size_type fb_n = eng_data.frame_buffers.size();
 	for (std::vector<int>::size_type i {0}; i < fb_n; ++i)
 	{
-		vkDestroyFramebuffer(eng_data.logical_device,
+		vkDestroyFramebuffer(dev_data.logical_device,
 							 eng_data.frame_buffers[i],
 							 nullptr);
 	}
 
-	const std::vector<int>::size_type iv_n {eng_data.image_views.size()};
+	const std::vector<int>::size_type iv_n {swap_data.image_views.size()};
 	for (std::vector<int>::size_type i {0}; i < iv_n; ++i)
 	{
-		vkDestroyImageView(eng_data.logical_device,
-						   eng_data.image_views[i],
+		vkDestroyImageView(dev_data.logical_device,
+						   swap_data.image_views[i],
 						   nullptr);
 	}
 
-	if (eng_data.swap_chain)
+	if (swap_data.swap_chain)
 	{
-		vkDestroySwapchainKHR(eng_data.logical_device,
-							  eng_data.swap_chain,
+		vkDestroySwapchainKHR(dev_data.logical_device,
+							  swap_data.swap_chain,
 							  nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_images(engine_data& eng_data)
 {
-	vkDestroySampler(eng_data.logical_device,
+	vkDestroySampler(dev_data.logical_device,
 					 eng_data.texture_sampler,
 					 nullptr);
-	vkDestroyImageView(eng_data.logical_device,
+	vkDestroyImageView(dev_data.logical_device,
 					   eng_data.texture_img_view,
 					   nullptr);
-	vkDestroyImage(eng_data.logical_device, eng_data.texture_img, nullptr);
-	vkFreeMemory(eng_data.logical_device, eng_data.texture_img_mem, nullptr);
+	vkDestroyImage(dev_data.logical_device, eng_data.texture_img, nullptr);
+	vkFreeMemory(dev_data.logical_device, eng_data.texture_img_mem, nullptr);
 }
 
 void liboceanlight::engine::cleanup_descriptor_pool(engine_data& eng_data)
 {
 	if (eng_data.descriptor_pool)
 	{
-		vkDestroyDescriptorPool(eng_data.logical_device,
+		vkDestroyDescriptorPool(dev_data.logical_device,
 								eng_data.descriptor_pool,
 								nullptr);
 	}
 
 	if (eng_data.descriptor_set_layout)
 	{
-		vkDestroyDescriptorSetLayout(eng_data.logical_device,
+		vkDestroyDescriptorSetLayout(dev_data.logical_device,
 									 eng_data.descriptor_set_layout,
 									 nullptr);
 	}
@@ -164,11 +170,11 @@ void liboceanlight::engine::cleanup_uniform_buffers(engine_data& eng_data)
 		for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
 		{
 			vkDestroyBuffer(
-				eng_data.logical_device,
+				dev_data.logical_device,
 				gsl::at(eng_data.uniform_buffers, static_cast<long long>(i)),
 				nullptr);
 
-			vkFreeMemory(eng_data.logical_device,
+			vkFreeMemory(dev_data.logical_device,
 						 gsl::at(eng_data.uniform_buffers_mem,
 								 static_cast<long long>(i)),
 						 nullptr);
@@ -183,12 +189,12 @@ void liboceanlight::engine::cleanup_vertex_buffer(
 {
 	if (vertex_buffer)
 	{
-		vkDestroyBuffer(eng_data.logical_device, vertex_buffer, nullptr);
+		vkDestroyBuffer(dev_data.logical_device, vertex_buffer, nullptr);
 	}
 
 	if (vertex_buffer_mem)
 	{
-		vkFreeMemory(eng_data.logical_device, vertex_buffer_mem, nullptr);
+		vkFreeMemory(dev_data.logical_device, vertex_buffer_mem, nullptr);
 	}
 }
 
@@ -199,12 +205,12 @@ void liboceanlight::engine::cleanup_index_buffer(
 {
 	if (index_buffer)
 	{
-		vkDestroyBuffer(eng_data.logical_device, index_buffer, nullptr);
+		vkDestroyBuffer(dev_data.logical_device, index_buffer, nullptr);
 	}
 
 	if (index_buffer_mem)
 	{
-		vkFreeMemory(eng_data.logical_device, index_buffer_mem, nullptr);
+		vkFreeMemory(dev_data.logical_device, index_buffer_mem, nullptr);
 	}
 }
 
@@ -224,38 +230,36 @@ void liboceanlight::models::cleanup_models(
 	}
 }
 
-void liboceanlight::engine::cleanup_surface(engine_data& eng_data)
+void liboceanlight::engine::cleanup_surface(VkSurfaceKHR& surface)
 {
-	if (eng_data.window_surface)
+	if (surface)
 	{
-		vkDestroySurfaceKHR(eng_data.vulkan_instance,
-							eng_data.window_surface,
-							nullptr);
+		vkDestroySurfaceKHR(inst_data.vulkan_instance, surface, nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_logical_device(engine_data& eng_data)
 {
-	if (eng_data.logical_device)
+	if (dev_data.logical_device)
 	{
-		vkDestroyDevice(eng_data.logical_device, nullptr);
+		vkDestroyDevice(dev_data.logical_device, nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_debug_messenger(engine_data& eng_data)
 {
-	if (eng_data.dbg_messenger)
+	if (inst_data.dbg_messenger)
 	{
-		DestroyDebugUtilsMessengerEXT(eng_data.vulkan_instance,
-									  eng_data.dbg_messenger,
+		DestroyDebugUtilsMessengerEXT(inst_data.vulkan_instance,
+									  inst_data.dbg_messenger,
 									  nullptr);
 	}
 }
 
-void liboceanlight::engine::cleanup_instance(engine_data& eng_data)
+void liboceanlight::engine::cleanup_instance(VkInstance& instance)
 {
-	if (eng_data.vulkan_instance)
+	if (instance)
 	{
-		vkDestroyInstance(eng_data.vulkan_instance, nullptr);
+		vkDestroyInstance(instance, nullptr);
 	}
 }

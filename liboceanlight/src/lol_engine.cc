@@ -3,7 +3,6 @@
 #include <config.h>
 #include <cstring>
 #include <gsl/gsl>
-#include <iostream>
 #include <vector>
 #include <vulkan/vulkan.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -15,6 +14,9 @@
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
 #include <liboceanlight/lol_window.hpp>
+#include <liboceanlight/lol_swapchain.hpp>
+#include <liboceanlight/lol_device.hpp>
+#include <liboceanlight/lol_pipeline.hpp>
 
 using namespace liboceanlight::engine;
 double scroll_offset {0.0f}, cursor_posx {0.0f}, cursor_posy {0.0f};
@@ -43,7 +45,7 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 		current_time += (new_time - current_time);
 	}
 
-	vkDeviceWaitIdle(eng_data.logical_device);
+	vkDeviceWaitIdle(dev_data.logical_device);
 }
 
 void liboceanlight::engine::draw_frame(liboceanlight::window& window,
@@ -51,7 +53,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 									   double dt)
 {
 	vkWaitForFences(
-		eng_data.logical_device,
+		dev_data.logical_device,
 		1,
 		&gsl::at(eng_data.in_flight_fences, eng_data.current_frame),
 		VK_TRUE,
@@ -59,8 +61,8 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 
 	uint32_t image_index {};
 	VkResult rv = vkAcquireNextImageKHR(
-		eng_data.logical_device,
-		eng_data.swap_chain,
+		dev_data.logical_device,
+		swap_data.swap_chain,
 		UINT64_MAX,
 		gsl::at(eng_data.wait_sems, eng_data.current_frame),
 		VK_NULL_HANDLE,
@@ -76,7 +78,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 		throw std::runtime_error("Failed to acquire swap chain image");
 	}
 
-	vkResetFences(eng_data.logical_device,
+	vkResetFences(dev_data.logical_device,
 				  1,
 				  &gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
 
@@ -108,7 +110,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 										   eng_data.current_frame);
 
 	rv = vkQueueSubmit(
-		eng_data.graphics_queue,
+		dev_data.graphics_queue,
 		1,
 		&submit_info,
 		gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
@@ -123,13 +125,13 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	present_info.waitSemaphoreCount = 1;
 	present_info.pWaitSemaphores = signal.data();
 
-	const VkSwapchainKHR swap_chains {eng_data.swap_chain};
+	const VkSwapchainKHR swap_chains {swap_data.swap_chain};
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &swap_chains;
 	present_info.pImageIndices = &image_index;
 	present_info.pResults = nullptr;
 
-	rv = vkQueuePresentKHR(eng_data.graphics_queue, &present_info);
+	rv = vkQueuePresentKHR(dev_data.graphics_queue, &present_info);
 
 	if (rv == VK_ERROR_OUT_OF_DATE_KHR | rv == VK_SUBOPTIMAL_KHR |
 		window.framebuffer_resized)
@@ -168,10 +170,10 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 											  depth_stencil_clear_val};
 	VkRenderPassBeginInfo pass_info {};
 	pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	pass_info.renderPass = eng_data.render_pass;
+	pass_info.renderPass = pipe_data.render_pass;
 	pass_info.framebuffer = eng_data.frame_buffers[image_index];
 	pass_info.renderArea.offset = {0, 0};
-	pass_info.renderArea.extent = eng_data.swap_extent;
+	pass_info.renderArea.extent = swap_data.swap_extent;
 	pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
 	pass_info.pClearValues = clear_values.data();
 
@@ -193,15 +195,15 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	VkViewport viewport {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(eng_data.swap_extent.width);
-	viewport.height = static_cast<float>(eng_data.swap_extent.height);
+	viewport.width = static_cast<float>(swap_data.swap_extent.width);
+	viewport.height = static_cast<float>(swap_data.swap_extent.height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(cmd_buffer, 0, 1, &viewport);
 
 	VkRect2D scissor {};
 	scissor.offset = {0, 0};
-	scissor.extent = eng_data.swap_extent;
+	scissor.extent = swap_data.swap_extent;
 	vkCmdSetScissor(cmd_buffer, 0, 1, &scissor);
 
 	for (auto& model : eng_data.model_list)
@@ -289,8 +291,8 @@ void liboceanlight::engine::update_uniform_buffer(
 	const float degrees {60.0f}, zfar {1000.0f}, znear {0.1f};
 	ubo.proj = glm::perspective(
 		glm::radians(degrees),
-		static_cast<float>(eng_data.swap_extent.width) /
-			static_cast<float>(eng_data.swap_extent.height),
+		static_cast<float>(swap_data.swap_extent.width) /
+			static_cast<float>(swap_data.swap_extent.height),
 		znear,
 		zfar);
 	ubo.proj[1][1] *= -1;
@@ -357,14 +359,14 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 				  staging_buff_mem);
 
 	void* data {};
-	vkMapMemory(eng_data.logical_device,
+	vkMapMemory(dev_data.logical_device,
 				staging_buff_mem,
 				0,
 				buff_size,
 				0,
 				&data);
 	memcpy(data, buff, (size_t)buff_size);
-	vkUnmapMemory(eng_data.logical_device, staging_buff_mem);
+	vkUnmapMemory(dev_data.logical_device, staging_buff_mem);
 
 	create_buffer(eng_data,
 				  buff_size,
@@ -374,8 +376,8 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 				  dst_mem);
 	copy_buffer(eng_data, staging_buff, dst, buff_size);
 
-	vkDestroyBuffer(eng_data.logical_device, staging_buff, nullptr);
-	vkFreeMemory(eng_data.logical_device, staging_buff_mem, nullptr);
+	vkDestroyBuffer(dev_data.logical_device, staging_buff, nullptr);
+	vkFreeMemory(dev_data.logical_device, staging_buff_mem, nullptr);
 }
 
 void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
@@ -390,11 +392,11 @@ void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
 		glfwWaitEvents();
 	}
 
-	vkDeviceWaitIdle(eng_data.logical_device);
+	vkDeviceWaitIdle(dev_data.logical_device);
 	cleanup_swapchain(eng_data);
-	get_swapchain_details(w, eng_data);
-	create_swapchain(eng_data);
-	create_image_views(eng_data);
+	swapchain::get_swapchain_details(w);
+	swapchain::create_swapchain(w);
+	swapchain::create_image_views(w);
 	create_depth_resources(eng_data);
 	create_framebuffers(eng_data);
 }

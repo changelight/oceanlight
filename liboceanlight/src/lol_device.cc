@@ -150,7 +150,7 @@ void liboceanlight::device::check_device_queue_support(VkSurfaceKHR& surface)
 	}
 }
 
-void liboceanlight::device::create_physical_device_new(VkInstance& instance)
+void liboceanlight::device::create_physical_device(VkInstance& instance)
 {
 	uint32_t count {0};
 	VkResult rv = vkEnumeratePhysicalDevices(instance, &count, nullptr);
@@ -175,7 +175,7 @@ void liboceanlight::device::create_physical_device_new(VkInstance& instance)
 	check_device_extension_support();
 }
 
-void liboceanlight::device::create_logical_device_new()
+void liboceanlight::device::create_logical_device()
 {
 	float queue_priority {1.0f};
 	VkDeviceQueueCreateInfo queue_info {};

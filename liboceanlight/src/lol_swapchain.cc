@@ -6,7 +6,7 @@
 
 liboceanlight::swapchain::swapchain_data swap_data;
 
-void liboceanlight::swapchain::get_swapchain_details_new(
+void liboceanlight::swapchain::get_swapchain_details(
 	liboceanlight::window& window)
 {
 	VkResult rv = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -108,5 +108,107 @@ void liboceanlight::swapchain::get_swapchain_details_new(
 			swap_data.present_mode = available_present_mode;
 			break;
 		}
+	}
+}
+
+void liboceanlight::swapchain::create_swapchain(liboceanlight::window& w)
+{
+	uint32_t img_count = w.surface_capabilities.minImageCount + 1;
+	uint32_t max_img_count = w.surface_capabilities.maxImageCount;
+
+	if (max_img_count > 0)
+	{
+		img_count = std::max(img_count, max_img_count);
+	}
+	else
+	{
+		throw std::runtime_error("Error: Max swapchain image count is 0.");
+	}
+
+	VkSwapchainCreateInfoKHR c_info {};
+	c_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	c_info.surface = w.surface;
+	c_info.minImageCount = img_count;
+	c_info.imageFormat = w.surface_format.format;
+	c_info.imageColorSpace = w.surface_format.colorSpace;
+	c_info.imageExtent = swap_data.swap_extent;
+	c_info.imageArrayLayers = 1;
+	c_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	c_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	c_info.queueFamilyIndexCount = 0;
+	c_info.pQueueFamilyIndices = nullptr;
+	c_info.preTransform = w.surface_capabilities.currentTransform;
+	c_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	c_info.presentMode = swap_data.present_mode;
+	c_info.clipped = VK_TRUE;
+	c_info.oldSwapchain = VK_NULL_HANDLE;
+
+	VkResult rv = vkCreateSwapchainKHR(dev_data.logical_device,
+									   &c_info,
+									   nullptr,
+									   &swap_data.swap_chain);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create swap chain");
+	}
+
+	img_count = 0;
+	vkGetSwapchainImagesKHR(dev_data.logical_device,
+							swap_data.swap_chain,
+							&img_count,
+							nullptr);
+
+	swap_data.images.resize(img_count);
+	vkGetSwapchainImagesKHR(dev_data.logical_device,
+							swap_data.swap_chain,
+							&img_count,
+							swap_data.images.data());
+}
+
+VkImageView liboceanlight::swapchain::create_image_view(
+	VkImage img,
+	VkFormat fmt,
+	VkImageAspectFlags flags)
+{
+	VkImageViewCreateInfo c_info {};
+	c_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	c_info.image = img;
+	c_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	c_info.format = fmt;
+	c_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	c_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	c_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	c_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	c_info.subresourceRange.aspectMask = flags;
+	c_info.subresourceRange.baseMipLevel = 0;
+	c_info.subresourceRange.levelCount = 1;
+	c_info.subresourceRange.baseArrayLayer = 0;
+	c_info.subresourceRange.layerCount = 1;
+
+	VkImageView img_view {};
+	VkResult rv = vkCreateImageView(dev_data.logical_device,
+									&c_info,
+									nullptr,
+									&img_view);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create image view");
+	}
+
+	return img_view;
+}
+
+void liboceanlight::swapchain::create_image_views(liboceanlight::window& w)
+{
+	const std::vector<int>::size_type n = swap_data.images.size();
+	swap_data.image_views.resize(n);
+	for (std::vector<int>::size_type i {0}; i < n; ++i)
+	{
+		swap_data.image_views[i] = create_image_view(
+			swap_data.images[i],
+			w.surface_format.format,
+			VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 }

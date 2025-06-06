@@ -2,7 +2,7 @@
 #define LIBOCEANLIGHT_INSTANCE_HPP_INCLUDED
 #include <vulkan/vulkan_core.h>
 
-namespace liboceanlight::engine
+namespace liboceanlight::instance
 {
 	using instance_data = struct lol_instance_data_struct
 	{
@@ -15,8 +15,7 @@ namespace liboceanlight::engine
 		bool validation_layer_enabled {true};
 #endif /* NDEBUG */
 	};
-} /* namespace liboceanlight::engine */
-extern liboceanlight::engine::instance_data inst_data;
-
-int create_instance_new(void);
+	int create_instance(void);
+} /* namespace liboceanlight::instance */
+extern liboceanlight::instance::instance_data inst_data;
 #endif /* LIBOCEANLIGHT_INSTANCE_HPP_INCLUDED */

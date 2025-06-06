@@ -1,4 +1,4 @@
-#include <algorithm>
+#include "liboceanlight/lol_window.hpp"
 #include <array>
 #include <config.h>
 #include <cstring>
@@ -12,6 +12,7 @@
 #include <liboceanlight/lol_utility.hpp>
 #include <liboceanlight/lol_device.hpp>
 #include <liboceanlight/lol_swapchain.hpp>
+#include <liboceanlight/lol_pipeline.hpp>
 #include <stb_image.h>
 #include <stdexcept>
 #include <tiny_gltf.h>
@@ -26,40 +27,16 @@ using namespace liboceanlight::engine;
 int liboceanlight::engine::init(liboceanlight::window& w,
 								engine_data& eng_data)
 {
-	//create_instance(eng_data);
-	create_instance_new();
-	eng_data.vulkan_instance = inst_data.vulkan_instance;
-	eng_data.dbg_messenger = inst_data.dbg_messenger;
-	eng_data.validation_layer_enabled = inst_data.validation_layer_enabled;
-
-	//create_physical_device(eng_data);
-	device::create_physical_device_new(inst_data.vulkan_instance);
-	eng_data.physical_device = dev_data.physical_device;
-
-	//create_surface(w, eng_data);
+	instance::create_instance();
+	device::create_physical_device(inst_data.vulkan_instance);
 	w.create_surface(inst_data.vulkan_instance);
-	eng_data.window_surface = w.surface;
-
-	//get_queue_fams(eng_data);
 	device::check_device_queue_support(w.surface);
-	eng_data.graphics_queue_index = dev_data.graphics_queue_index;
+	device::create_logical_device();
+	swapchain::get_swapchain_details(w);
+	swapchain::create_swapchain(w);
+	swapchain::create_image_views(w);
+	pipeline::create_render_pass(w);
 
-	//create_logical_device(eng_data);
-	device::create_logical_device_new();
-	eng_data.logical_device = dev_data.logical_device;
-	eng_data.graphics_queue = dev_data.graphics_queue;
-
-	//get_swapchain_details(window, eng_data);
-	swapchain::get_swapchain_details_new(w);
-	eng_data.capabilities = w.surface_capabilities;
-	eng_data.swap_extent = swap_data.swap_extent;
-	eng_data.present_mode = swap_data.present_mode;
-	eng_data.surface_format = w.surface_format;
-	
-	create_swapchain(eng_data);
-	create_image_views(eng_data);
-
-	create_render_pass(eng_data);
 	create_descriptor_set_layout(eng_data);
 	create_pipeline(eng_data);
 
@@ -80,181 +57,6 @@ int liboceanlight::engine::init(liboceanlight::window& w,
 	create_sync_objects(eng_data);
 
 	return 1;
-}
-
-void liboceanlight::engine::create_swapchain(engine_data& eng_data)
-{
-	uint32_t img_count = eng_data.capabilities.minImageCount + 1;
-	uint32_t max_img_count = eng_data.capabilities.maxImageCount;
-
-	if (max_img_count > 0)
-	{
-		img_count = std::max(img_count, max_img_count);
-	}
-	else
-	{
-		throw std::runtime_error("Error: Max swapchain image count is 0.");
-	}
-
-	VkSwapchainCreateInfoKHR c_info {};
-	c_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	c_info.surface = eng_data.window_surface;
-	c_info.minImageCount = img_count;
-	c_info.imageFormat = eng_data.surface_format.format;
-	c_info.imageColorSpace = eng_data.surface_format.colorSpace;
-	c_info.imageExtent = eng_data.swap_extent;
-	c_info.imageArrayLayers = 1;
-	c_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	c_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	c_info.queueFamilyIndexCount = 0;
-	c_info.pQueueFamilyIndices = nullptr;
-	c_info.preTransform = eng_data.capabilities.currentTransform;
-	c_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	c_info.presentMode = eng_data.present_mode;
-	c_info.clipped = VK_TRUE;
-	c_info.oldSwapchain = VK_NULL_HANDLE;
-
-	VkResult rv = vkCreateSwapchainKHR(eng_data.logical_device,
-									   &c_info,
-									   nullptr,
-									   &eng_data.swap_chain);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create swap chain");
-	}
-
-	img_count = 0;
-	vkGetSwapchainImagesKHR(eng_data.logical_device,
-							eng_data.swap_chain,
-							&img_count,
-							nullptr);
-
-	eng_data.images.resize(img_count);
-	vkGetSwapchainImagesKHR(eng_data.logical_device,
-							eng_data.swap_chain,
-							&img_count,
-							eng_data.images.data());
-}
-
-void liboceanlight::engine::create_image_views(engine_data& eng_data)
-{
-	const std::vector<int>::size_type n = eng_data.images.size();
-	eng_data.image_views.resize(n);
-	for (std::vector<int>::size_type i {0}; i < n; ++i)
-	{
-		eng_data.image_views[i] = create_image_view(
-			eng_data,
-			eng_data.images[i],
-			eng_data.surface_format.format,
-			VK_IMAGE_ASPECT_COLOR_BIT);
-	}
-}
-
-VkImageView liboceanlight::engine::create_image_view(
-	engine_data& eng_data,
-	VkImage img,
-	VkFormat fmt,
-	VkImageAspectFlags aspect_flags)
-{
-	VkImageViewCreateInfo c_info {};
-	c_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	c_info.image = img;
-	c_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	c_info.format = fmt;
-	c_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-	c_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-	c_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-	c_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-	c_info.subresourceRange.aspectMask = aspect_flags;
-	c_info.subresourceRange.baseMipLevel = 0;
-	c_info.subresourceRange.levelCount = 1;
-	c_info.subresourceRange.baseArrayLayer = 0;
-	c_info.subresourceRange.layerCount = 1;
-
-	VkImageView img_view {};
-	VkResult rv = vkCreateImageView(eng_data.logical_device,
-									&c_info,
-									nullptr,
-									&img_view);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create image view");
-	}
-
-	return img_view;
-}
-
-void liboceanlight::engine::create_render_pass(engine_data& eng_data)
-{
-	VkAttachmentDescription color_attachment {};
-	color_attachment.format = eng_data.surface_format.format;
-	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-	VkAttachmentReference color_ref {};
-	color_ref.attachment = 0;
-	color_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentDescription depth_attachment {};
-	depth_attachment.format = eng_data.depth_fmt;
-	depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depth_attachment.finalLayout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depth_attachment_ref {};
-	depth_attachment_ref.attachment = 1;
-	depth_attachment_ref.layout =
-		VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkSubpassDescription subpass_desc {};
-	subpass_desc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass_desc.colorAttachmentCount = 1;
-	subpass_desc.pColorAttachments = &color_ref;
-	subpass_desc.pDepthStencilAttachment = &depth_attachment_ref;
-
-	VkSubpassDependency subpass_dep {};
-	subpass_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
-	subpass_dep.dstSubpass = 0;
-	subpass_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-							   VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	subpass_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-							   VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	subpass_dep.srcAccessMask = 0;
-	subpass_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-								VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-	std::array attachments {color_attachment, depth_attachment};
-	VkRenderPassCreateInfo render_pass_info {};
-	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_info.attachmentCount = static_cast<uint32_t>(
-		attachments.size());
-	render_pass_info.pAttachments = attachments.data();
-	render_pass_info.subpassCount = 1;
-	render_pass_info.pSubpasses = &subpass_desc;
-	render_pass_info.dependencyCount = 1;
-	render_pass_info.pDependencies = &subpass_dep;
-
-	VkResult rv = vkCreateRenderPass(eng_data.logical_device,
-									 &render_pass_info,
-									 nullptr,
-									 &eng_data.render_pass);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create render pass");
-	}
 }
 
 void liboceanlight::engine::create_descriptor_set_layout(engine_data& eng_data)
@@ -280,7 +82,7 @@ void liboceanlight::engine::create_descriptor_set_layout(engine_data& eng_data)
 	layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
 	layout_info.pBindings = bindings.data();
 
-	VkResult rv = vkCreateDescriptorSetLayout(eng_data.logical_device,
+	VkResult rv = vkCreateDescriptorSetLayout(dev_data.logical_device,
 											  &layout_info,
 											  nullptr,
 											  &eng_data.descriptor_set_layout);
@@ -333,14 +135,14 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	VkViewport viewport {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)eng_data.swap_extent.width;
-	viewport.height = (float)eng_data.swap_extent.height;
+	viewport.width = (float)swap_data.swap_extent.width;
+	viewport.height = (float)swap_data.swap_extent.height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor {};
 	scissor.offset = {0, 0};
-	scissor.extent = eng_data.swap_extent;
+	scissor.extent = swap_data.swap_extent;
 
 	std::vector<VkDynamicState> dyn_states = {VK_DYNAMIC_STATE_VIEWPORT,
 											  VK_DYNAMIC_STATE_SCISSOR};
@@ -422,7 +224,7 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 
-	auto rv = vkCreatePipelineLayout(eng_data.logical_device,
+	auto rv = vkCreatePipelineLayout(dev_data.logical_device,
 									 &pipeline_layout_info,
 									 nullptr,
 									 &eng_data.pipeline_layout);
@@ -445,12 +247,12 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 	pipeline_info.pColorBlendState = &color_blend_info;
 	pipeline_info.pDynamicState = &dyn_info;
 	pipeline_info.layout = eng_data.pipeline_layout;
-	pipeline_info.renderPass = eng_data.render_pass;
+	pipeline_info.renderPass = pipe_data.render_pass;
 	pipeline_info.subpass = 0;
 	pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
 	pipeline_info.basePipelineIndex = -1;
 
-	rv = vkCreateGraphicsPipelines(eng_data.logical_device,
+	rv = vkCreateGraphicsPipelines(dev_data.logical_device,
 								   VK_NULL_HANDLE,
 								   1,
 								   &pipeline_info,
@@ -462,31 +264,31 @@ void liboceanlight::engine::create_pipeline(engine_data& eng_data)
 		throw std::runtime_error("Failed to create graphics pipeline");
 	}
 
-	vkDestroyShaderModule(eng_data.logical_device, vs, nullptr);
-	vkDestroyShaderModule(eng_data.logical_device, fs, nullptr);
+	vkDestroyShaderModule(dev_data.logical_device, vs, nullptr);
+	vkDestroyShaderModule(dev_data.logical_device, fs, nullptr);
 }
 
 void liboceanlight::engine::create_framebuffers(engine_data& eng_data)
 {
-	size_t n {eng_data.image_views.size()};
+	size_t n {swap_data.image_views.size()};
 	eng_data.frame_buffers.resize(n);
 
 	VkFramebufferCreateInfo c_info {};
 	c_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	c_info.renderPass = eng_data.render_pass;
-	c_info.width = eng_data.swap_extent.width;
-	c_info.height = eng_data.swap_extent.height;
+	c_info.renderPass = pipe_data.render_pass;
+	c_info.width = swap_data.swap_extent.width;
+	c_info.height = swap_data.swap_extent.height;
 	c_info.layers = 1;
 
 	VkResult rv {};
 	for (size_t i {0}; i < n; ++i)
 	{
-		std::array attachments {eng_data.image_views[i],
+		std::array attachments {swap_data.image_views[i],
 								eng_data.depth_img_view};
 		c_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 		c_info.pAttachments = attachments.data();
 
-		rv = vkCreateFramebuffer(eng_data.logical_device,
+		rv = vkCreateFramebuffer(dev_data.logical_device,
 								 &c_info,
 								 nullptr,
 								 &eng_data.frame_buffers[i]);
@@ -503,9 +305,9 @@ void liboceanlight::engine::create_cmd_pool(engine_data& eng_data)
 	VkCommandPoolCreateInfo c_info {};
 	c_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	c_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	c_info.queueFamilyIndex = eng_data.graphics_queue_index;
+	c_info.queueFamilyIndex = dev_data.graphics_queue_index;
 
-	VkResult rv = vkCreateCommandPool(eng_data.logical_device,
+	VkResult rv = vkCreateCommandPool(dev_data.logical_device,
 									  &c_info,
 									  nullptr,
 									  &eng_data.command_pool);
@@ -519,8 +321,8 @@ void liboceanlight::engine::create_cmd_pool(engine_data& eng_data)
 void liboceanlight::engine::create_depth_resources(engine_data& eng_data)
 {
 	create_image(eng_data,
-				 eng_data.swap_extent.width,
-				 eng_data.swap_extent.height,
+				 swap_data.swap_extent.width,
+				 swap_data.swap_extent.height,
 				 eng_data.depth_fmt,
 				 VK_IMAGE_TILING_OPTIMAL,
 				 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -528,10 +330,10 @@ void liboceanlight::engine::create_depth_resources(engine_data& eng_data)
 				 eng_data.depth_img,
 				 eng_data.depth_img_mem);
 
-	eng_data.depth_img_view = create_image_view(eng_data,
-												eng_data.depth_img,
-												eng_data.depth_fmt,
-												VK_IMAGE_ASPECT_DEPTH_BIT);
+	eng_data.depth_img_view = swapchain::create_image_view(
+		eng_data.depth_img,
+		eng_data.depth_fmt,
+		VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	transition_img_layout(eng_data,
 						  eng_data.depth_img,
@@ -567,14 +369,14 @@ void liboceanlight::engine::create_texture_img(engine_data& eng_data)
 				  staging_buff_mem);
 
 	void* data {nullptr};
-	vkMapMemory(eng_data.logical_device,
+	vkMapMemory(dev_data.logical_device,
 				staging_buff_mem,
 				0,
 				img_size,
 				0,
 				&data);
 	memcpy(data, pixels, static_cast<size_t>(img_size));
-	vkUnmapMemory(eng_data.logical_device, staging_buff_mem);
+	vkUnmapMemory(dev_data.logical_device, staging_buff_mem);
 	stbi_image_free(pixels);
 
 	create_image(eng_data,
@@ -605,8 +407,8 @@ void liboceanlight::engine::create_texture_img(engine_data& eng_data)
 						  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 						  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-	vkDestroyBuffer(eng_data.logical_device, staging_buff, nullptr);
-	vkFreeMemory(eng_data.logical_device, staging_buff_mem, nullptr);
+	vkDestroyBuffer(dev_data.logical_device, staging_buff, nullptr);
+	vkFreeMemory(dev_data.logical_device, staging_buff_mem, nullptr);
 }
 
 void liboceanlight::engine::create_image(engine_data& eng_data,
@@ -636,7 +438,7 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 	image_info.flags = 0;
 
 	VkResult rv {};
-	rv = vkCreateImage(eng_data.logical_device, &image_info, nullptr, &image);
+	rv = vkCreateImage(dev_data.logical_device, &image_info, nullptr, &image);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -644,7 +446,7 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 	}
 
 	VkMemoryRequirements mem_reqs {};
-	vkGetImageMemoryRequirements(eng_data.logical_device, image, &mem_reqs);
+	vkGetImageMemoryRequirements(dev_data.logical_device, image, &mem_reqs);
 
 	VkMemoryAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -653,7 +455,7 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 											   mem_reqs.memoryTypeBits,
 											   props);
 
-	rv = vkAllocateMemory(eng_data.logical_device,
+	rv = vkAllocateMemory(dev_data.logical_device,
 						  &alloc_info,
 						  nullptr,
 						  &image_mem);
@@ -663,7 +465,7 @@ void liboceanlight::engine::create_image(engine_data& eng_data,
 		throw std::runtime_error("Failed to allocate image memory");
 	}
 
-	vkBindImageMemory(eng_data.logical_device, image, image_mem, 0);
+	vkBindImageMemory(dev_data.logical_device, image, image_mem, 0);
 }
 
 VkCommandBuffer liboceanlight::engine::begin_single_time_cmds(
@@ -676,7 +478,7 @@ VkCommandBuffer liboceanlight::engine::begin_single_time_cmds(
 	alloc_info.commandBufferCount = 1;
 
 	VkCommandBuffer cmd_buffer {};
-	vkAllocateCommandBuffers(eng_data.logical_device,
+	vkAllocateCommandBuffers(dev_data.logical_device,
 							 &alloc_info,
 							 &cmd_buffer);
 
@@ -698,9 +500,9 @@ void liboceanlight::engine::end_single_time_cmds(engine_data& eng_data,
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &cmd_buffer;
 
-	vkQueueSubmit(eng_data.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-	vkQueueWaitIdle(eng_data.graphics_queue);
-	vkFreeCommandBuffers(eng_data.logical_device,
+	vkQueueSubmit(dev_data.graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+	vkQueueWaitIdle(dev_data.graphics_queue);
+	vkFreeCommandBuffers(dev_data.logical_device,
 						 eng_data.command_pool,
 						 1,
 						 &cmd_buffer);
@@ -821,8 +623,7 @@ void liboceanlight::engine::copy_buffer_to_img(engine_data& eng_data,
 
 void liboceanlight::engine::create_texture_img_view(engine_data& eng_data)
 {
-	eng_data.texture_img_view = create_image_view(eng_data,
-												  eng_data.texture_img,
+	eng_data.texture_img_view = swapchain::create_image_view(eng_data.texture_img,
 												  VK_FORMAT_R8G8B8A8_SRGB,
 												  VK_IMAGE_ASPECT_COLOR_BIT);
 }
@@ -847,7 +648,7 @@ void liboceanlight::engine::create_texture_sampler(engine_data& eng_data)
 	c_info.minLod = 0.0f;
 	c_info.maxLod = 0.0f;
 
-	VkResult rv = vkCreateSampler(eng_data.logical_device,
+	VkResult rv = vkCreateSampler(dev_data.logical_device,
 								  &c_info,
 								  nullptr,
 								  &eng_data.texture_sampler);
@@ -958,7 +759,7 @@ void liboceanlight::engine::create_uniform_buffers(engine_data& eng_data)
 					  gsl::at(eng_data.uniform_buffers, i),
 					  gsl::at(eng_data.uniform_buffers_mem, i));
 
-		vkMapMemory(eng_data.logical_device,
+		vkMapMemory(dev_data.logical_device,
 					gsl::at(eng_data.uniform_buffers_mem, i),
 					0,
 					buff_size,
@@ -983,7 +784,7 @@ void liboceanlight::engine::create_descriptor_pool(engine_data& eng_data)
 	pool_info.pPoolSizes = pool_sizes.data();
 	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
 
-	VkResult rv = vkCreateDescriptorPool(eng_data.logical_device,
+	VkResult rv = vkCreateDescriptorPool(dev_data.logical_device,
 										 &pool_info,
 										 nullptr,
 										 &eng_data.descriptor_pool);
@@ -1006,7 +807,7 @@ void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
 		eng_data.max_frames_in_flight);
 	alloc_info.pSetLayouts = layouts.data();
 
-	VkResult rv = vkAllocateDescriptorSets(eng_data.logical_device,
+	VkResult rv = vkAllocateDescriptorSets(dev_data.logical_device,
 										   &alloc_info,
 										   eng_data.descriptor_sets.data());
 
@@ -1046,7 +847,7 @@ void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
 		descriptor_writes[1].descriptorCount = 1;
 		descriptor_writes[1].pImageInfo = &image_info;
 
-		vkUpdateDescriptorSets(eng_data.logical_device,
+		vkUpdateDescriptorSets(dev_data.logical_device,
 							   static_cast<uint32_t>(descriptor_writes.size()),
 							   descriptor_writes.data(),
 							   0,
@@ -1067,7 +868,7 @@ void liboceanlight::engine::create_buffer(engine_data& eng_data,
 	buff_info.usage = usage;
 	buff_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	VkResult rv = vkCreateBuffer(eng_data.logical_device,
+	VkResult rv = vkCreateBuffer(dev_data.logical_device,
 								 &buff_info,
 								 nullptr,
 								 &buff);
@@ -1078,7 +879,7 @@ void liboceanlight::engine::create_buffer(engine_data& eng_data,
 	}
 
 	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(eng_data.logical_device, buff, &mem_reqs);
+	vkGetBufferMemoryRequirements(dev_data.logical_device, buff, &mem_reqs);
 
 	uint32_t type_index = find_mem_type(eng_data,
 										mem_reqs.memoryTypeBits,
@@ -1089,7 +890,7 @@ void liboceanlight::engine::create_buffer(engine_data& eng_data,
 	alloc_info.allocationSize = mem_reqs.size;
 	alloc_info.memoryTypeIndex = type_index;
 
-	rv = vkAllocateMemory(eng_data.logical_device,
+	rv = vkAllocateMemory(dev_data.logical_device,
 						  &alloc_info,
 						  nullptr,
 						  &buff_mem);
@@ -1099,7 +900,7 @@ void liboceanlight::engine::create_buffer(engine_data& eng_data,
 		throw std::runtime_error("Failed to allocate vertex buffer memory");
 	}
 
-	vkBindBufferMemory(eng_data.logical_device, buff, buff_mem, 0);
+	vkBindBufferMemory(dev_data.logical_device, buff, buff_mem, 0);
 }
 
 void liboceanlight::engine::copy_buffer(engine_data& eng_data,
@@ -1119,7 +920,7 @@ uint32_t liboceanlight::engine::find_mem_type(engine_data& eng_data,
 											  VkMemoryPropertyFlags flags)
 {
 	VkPhysicalDeviceMemoryProperties mem_props;
-	vkGetPhysicalDeviceMemoryProperties(eng_data.physical_device, &mem_props);
+	vkGetPhysicalDeviceMemoryProperties(dev_data.physical_device, &mem_props);
 
 	for (uint32_t i {0}; i < mem_props.memoryTypeCount; ++i)
 	{
@@ -1141,7 +942,7 @@ void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
 	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	alloc_info.commandBufferCount = (uint32_t)eng_data.max_frames_in_flight;
 
-	VkResult rv = vkAllocateCommandBuffers(eng_data.logical_device,
+	VkResult rv = vkAllocateCommandBuffers(dev_data.logical_device,
 										   &alloc_info,
 										   eng_data.command_buffers.data());
 	if (rv != VK_SUCCESS)
@@ -1162,7 +963,7 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 	VkResult rv {};
 	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
 	{
-		rv = vkCreateSemaphore(eng_data.logical_device,
+		rv = vkCreateSemaphore(dev_data.logical_device,
 							   &sem_info,
 							   nullptr,
 							   &gsl::at(eng_data.signal_sems, i));
@@ -1172,7 +973,7 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 			throw std::runtime_error("Failed to create signal semaphore");
 		}
 
-		rv = vkCreateSemaphore(eng_data.logical_device,
+		rv = vkCreateSemaphore(dev_data.logical_device,
 							   &sem_info,
 							   nullptr,
 							   &gsl::at(eng_data.wait_sems, i));
@@ -1182,7 +983,7 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 			throw std::runtime_error("Failed to create wait semaphore");
 		}
 
-		rv = vkCreateFence(eng_data.logical_device,
+		rv = vkCreateFence(dev_data.logical_device,
 						   &fence_info,
 						   nullptr,
 						   &gsl::at(eng_data.in_flight_fences, i));
@@ -1205,7 +1006,7 @@ VkShaderModule liboceanlight::engine::create_shader(
 		static_cast<const void*>(shader_code.data()));
 
 	VkShaderModule shader_module {};
-	auto rv = vkCreateShaderModule(eng_data.logical_device,
+	auto rv = vkCreateShaderModule(dev_data.logical_device,
 								   &create_info,
 								   nullptr,
 								   &shader_module);

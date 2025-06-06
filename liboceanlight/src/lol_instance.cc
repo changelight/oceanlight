@@ -7,8 +7,7 @@
 #include <liboceanlight/lol_instance.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 
-using namespace liboceanlight::engine;
-instance_data inst_data;
+liboceanlight::instance::instance_data inst_data;
 
 std::vector<const char*> get_required_extensions()
 {
@@ -35,7 +34,7 @@ void set_dbg_msngr_create_info(VkDebugUtilsMessengerCreateInfoEXT& c_info)
 						 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 						 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 
-	c_info.pfnUserCallback = dbg_messenger_callback;
+	c_info.pfnUserCallback = liboceanlight::engine::dbg_messenger_callback;
 	c_info.pUserData = nullptr; // Optional
 }
 
@@ -110,7 +109,7 @@ void check_layer_support(const std::vector<const char*>& required)
 	}
 }
 
-int create_instance_new()
+int liboceanlight::instance::create_instance()
 {
 	VkApplicationInfo app_info {};
 	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -139,7 +138,7 @@ int create_instance_new()
 	{
 		req_layers.push_back("VK_LAYER_KHRONOS_validation");
 		req_exts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-		set_dbg_messenger_create_info(dbg_info);
+		liboceanlight::engine::set_dbg_messenger_create_info(dbg_info);
 		inst_info.pNext = &dbg_info;
 	}
 
@@ -169,10 +168,11 @@ int create_instance_new()
 
 	if (inst_data.validation_layer_enabled)
 	{
-		rv = CreateDebugUtilsMessengerEXT(inst_data.vulkan_instance,
-										  &dbg_info,
-										  nullptr,
-										  &inst_data.dbg_messenger);
+		rv = liboceanlight::engine::CreateDebugUtilsMessengerEXT(
+			inst_data.vulkan_instance,
+			&dbg_info,
+			nullptr,
+			&inst_data.dbg_messenger);
 
 		if (rv != VK_SUCCESS)
 		{
