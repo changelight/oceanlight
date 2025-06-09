@@ -32,13 +32,13 @@ std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
 	return formatted.str() + "|";
 }
 
-std::vector<char> liboceanlight::read_file(const std::string& filename)
+const std::vector<char> liboceanlight::read_file(const std::string& path)
 {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
+	std::ifstream file(path, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
 	{
-		throw std::runtime_error("Failed to open file " + filename);
+		throw std::runtime_error("Failed to open file " + path);
 	}
 
 	const auto filesize {file.tellg()};

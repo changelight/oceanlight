@@ -15,10 +15,13 @@ namespace liboceanlight::swapchain
 		std::vector<VkImageView> image_views;
 		std::vector<VkFramebuffer> frame_buffers;
 	};
-	void get_swapchain_details(liboceanlight::window&);
-	void create_swapchain(liboceanlight::window&);
-	void create_image_views(liboceanlight::window&);
-	VkImageView create_image_view(VkImage, VkFormat, VkImageAspectFlags);
+	void init_swapchain(liboceanlight::window&, VkPhysicalDevice, VkDevice);
+	void create_swapchain(liboceanlight::window&, VkDevice);
+	void create_image_views(liboceanlight::window&, VkDevice);
+	VkImageView create_image_view(VkDevice,
+								  VkImage,
+								  VkFormat,
+								  VkImageAspectFlags);
 } /* namespace liboceanlight::swapchain */
 extern liboceanlight::swapchain::swapchain_data swap_data;
 #endif /* LIBOCEANLIGHT_SWAPCHAIN_HPP_INCLUDED */

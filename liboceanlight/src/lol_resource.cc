@@ -1,5 +1,30 @@
-#include <liboceanlight/lol_engine_init.hpp>
+#include <vector>
+#include <vulkan/vulkan_core.h>
+#include <liboceanlight/lol_resource.hpp>
 #include <stdexcept>
+
+VkShaderModule liboceanlight::resource::create_shader(
+	VkDevice device,
+	const std::vector<char>& shader_code)
+{
+	VkShaderModuleCreateInfo create_info {};
+	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	create_info.codeSize = shader_code.size();
+	create_info.pCode = static_cast<const uint32_t*>(
+		static_cast<const void*>(shader_code.data()));
+
+	VkShaderModule shader_module {};
+	auto rv = vkCreateShaderModule(device,
+								   &create_info,
+								   nullptr,
+								   &shader_module);
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create shader module");
+	}
+
+	return shader_module;
+}
 
 /*
 void liboceanlight::engine::create_vk_resource()

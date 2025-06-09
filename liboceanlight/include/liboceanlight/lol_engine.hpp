@@ -98,28 +98,28 @@ namespace liboceanlight::engine
 	using engine_data = struct lol_engine_data_struct
 	{
 		/* DEVICE */
-		//VkPhysicalDevice physical_device {VK_NULL_HANDLE};
-		//VkDevice logical_device {VK_NULL_HANDLE};
+		// VkPhysicalDevice physical_device {VK_NULL_HANDLE};
+		// VkDevice logical_device {VK_NULL_HANDLE};
 		static constexpr std::array dev_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 		VkPhysicalDeviceProperties device_props {};
 		VkPhysicalDeviceFeatures supported_device_features {};
 
 		/* SURFACE */
-		//VkSurfaceKHR window_surface {nullptr};
-		//VkSurfaceCapabilitiesKHR capabilities {};
-		//VkSurfaceFormatKHR surface_format {};
+		// VkSurfaceKHR window_surface {nullptr};
+		// VkSurfaceCapabilitiesKHR capabilities {};
+		// VkSurfaceFormatKHR surface_format {};
 
 		/* QUEUE */
-		//uint32_t graphics_queue_index {UINT32_MAX};
-		//VkQueue graphics_queue {nullptr};
+		// uint32_t graphics_queue_index {UINT32_MAX};
+		// VkQueue graphics_queue {nullptr};
 
 		/* SWAPCHAIN */
-		//VkSwapchainKHR swap_chain {nullptr};
-		//VkExtent2D swap_extent {};
-		//VkPresentModeKHR present_mode;
-		//std::vector<VkImage> images;
-		//std::vector<VkImageView> image_views;
+		// VkSwapchainKHR swap_chain {nullptr};
+		// VkExtent2D swap_extent {};
+		// VkPresentModeKHR present_mode;
+		// std::vector<VkImage> images;
+		// std::vector<VkImageView> image_views;
 		std::vector<VkFramebuffer> frame_buffers;
 
 		/* PIPELINE */

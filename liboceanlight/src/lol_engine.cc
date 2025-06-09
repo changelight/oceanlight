@@ -45,7 +45,7 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 		current_time += (new_time - current_time);
 	}
 
-	vkDeviceWaitIdle(dev_data.logical_device);
+	vkDeviceWaitIdle(dev_data.device);
 }
 
 void liboceanlight::engine::draw_frame(liboceanlight::window& window,
@@ -53,7 +53,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 									   double dt)
 {
 	vkWaitForFences(
-		dev_data.logical_device,
+		dev_data.device,
 		1,
 		&gsl::at(eng_data.in_flight_fences, eng_data.current_frame),
 		VK_TRUE,
@@ -61,7 +61,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 
 	uint32_t image_index {};
 	VkResult rv = vkAcquireNextImageKHR(
-		dev_data.logical_device,
+		dev_data.device,
 		swap_data.swap_chain,
 		UINT64_MAX,
 		gsl::at(eng_data.wait_sems, eng_data.current_frame),
@@ -78,7 +78,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 		throw std::runtime_error("Failed to acquire swap chain image");
 	}
 
-	vkResetFences(dev_data.logical_device,
+	vkResetFences(dev_data.device,
 				  1,
 				  &gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
 
@@ -180,12 +180,12 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 	vkCmdBeginRenderPass(cmd_buffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(cmd_buffer,
 					  VK_PIPELINE_BIND_POINT_GRAPHICS,
-					  eng_data.graphics_pipeline);
+					  pipe_data.pipeline);
 
 	vkCmdBindDescriptorSets(
 		cmd_buffer,
 		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		eng_data.pipeline_layout,
+		pipe_data.pipeline_layout,
 		0,
 		1,
 		&gsl::at(eng_data.descriptor_sets, eng_data.current_frame),
@@ -215,7 +215,7 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 							   1,
 							   vertex_buffers.data(),
 							   &offsets);
-							   
+
 		vkCmdBindIndexBuffer(cmd_buffer,
 							 model.index_buffer,
 							 0,
@@ -359,14 +359,9 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 				  staging_buff_mem);
 
 	void* data {};
-	vkMapMemory(dev_data.logical_device,
-				staging_buff_mem,
-				0,
-				buff_size,
-				0,
-				&data);
+	vkMapMemory(dev_data.device, staging_buff_mem, 0, buff_size, 0, &data);
 	memcpy(data, buff, (size_t)buff_size);
-	vkUnmapMemory(dev_data.logical_device, staging_buff_mem);
+	vkUnmapMemory(dev_data.device, staging_buff_mem);
 
 	create_buffer(eng_data,
 				  buff_size,
@@ -376,8 +371,8 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 				  dst_mem);
 	copy_buffer(eng_data, staging_buff, dst, buff_size);
 
-	vkDestroyBuffer(dev_data.logical_device, staging_buff, nullptr);
-	vkFreeMemory(dev_data.logical_device, staging_buff_mem, nullptr);
+	vkDestroyBuffer(dev_data.device, staging_buff, nullptr);
+	vkFreeMemory(dev_data.device, staging_buff_mem, nullptr);
 }
 
 void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
@@ -392,11 +387,11 @@ void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
 		glfwWaitEvents();
 	}
 
-	vkDeviceWaitIdle(dev_data.logical_device);
+	vkDeviceWaitIdle(dev_data.device);
 	cleanup_swapchain(eng_data);
-	swapchain::get_swapchain_details(w);
-	swapchain::create_swapchain(w);
-	swapchain::create_image_views(w);
+	swapchain::init_swapchain(w, dev_data.phys_device, dev_data.device);
+	swapchain::create_swapchain(w, dev_data.device);
+	swapchain::create_image_views(w, dev_data.device);
 	create_depth_resources(eng_data);
 	create_framebuffers(eng_data);
 }

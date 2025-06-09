@@ -1,7 +1,6 @@
 #include <vector>
 #include <stdexcept>
 #include <liboceanlight/lol_device.hpp>
-#include <liboceanlight/lol_instance.hpp>
 
 liboceanlight::device::device_data dev_data;
 
@@ -68,7 +67,7 @@ VkPhysicalDevice select_physical_device(std::vector<VkPhysicalDevice>& devs)
 void check_device_extension_support()
 {
 	uint32_t count {0};
-	auto rv = vkEnumerateDeviceExtensionProperties(dev_data.physical_device,
+	auto rv = vkEnumerateDeviceExtensionProperties(dev_data.phys_device,
 												   nullptr,
 												   &count,
 												   nullptr);
@@ -78,7 +77,7 @@ void check_device_extension_support()
 	}
 
 	std::vector<VkExtensionProperties> ext_props(count);
-	vkEnumerateDeviceExtensionProperties(dev_data.physical_device,
+	vkEnumerateDeviceExtensionProperties(dev_data.phys_device,
 										 nullptr,
 										 &count,
 										 ext_props.data());
@@ -105,15 +104,15 @@ void check_device_extension_support()
 	}
 }
 
-void liboceanlight::device::check_device_queue_support(VkSurfaceKHR& surface)
+void liboceanlight::device::check_device_queue_support(VkSurfaceKHR surface)
 {
 	uint32_t count {0};
-	vkGetPhysicalDeviceQueueFamilyProperties(dev_data.physical_device,
+	vkGetPhysicalDeviceQueueFamilyProperties(dev_data.phys_device,
 											 &count,
 											 nullptr);
 
 	std::vector<VkQueueFamilyProperties> queue_fam_props(count);
-	vkGetPhysicalDeviceQueueFamilyProperties(dev_data.physical_device,
+	vkGetPhysicalDeviceQueueFamilyProperties(dev_data.phys_device,
 											 &count,
 											 queue_fam_props.data());
 
@@ -127,7 +126,7 @@ void liboceanlight::device::check_device_queue_support(VkSurfaceKHR& surface)
 		}
 
 		VkResult rv = vkGetPhysicalDeviceSurfaceSupportKHR(
-			dev_data.physical_device,
+			dev_data.phys_device,
 			i,
 			surface,
 			&supports_presentation[i]);
@@ -150,7 +149,7 @@ void liboceanlight::device::check_device_queue_support(VkSurfaceKHR& surface)
 	}
 }
 
-void liboceanlight::device::create_physical_device(VkInstance& instance)
+void liboceanlight::device::create_physical_device(VkInstance instance)
 {
 	uint32_t count {0};
 	VkResult rv = vkEnumeratePhysicalDevices(instance, &count, nullptr);
@@ -166,8 +165,8 @@ void liboceanlight::device::create_physical_device(VkInstance& instance)
 		throw std::runtime_error("Failed to enumerate physical devices");
 	}
 
-	dev_data.physical_device = select_physical_device(devices);
-	if (!dev_data.physical_device)
+	dev_data.phys_device = select_physical_device(devices);
+	if (!dev_data.phys_device)
 	{
 		throw std::runtime_error("Failed to select physical device");
 	}
@@ -186,6 +185,7 @@ void liboceanlight::device::create_logical_device()
 
 	VkPhysicalDeviceFeatures requested_dev_features {
 		.samplerAnisotropy = VK_TRUE};
+		
 	VkDeviceCreateInfo dev_info {};
 	dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	dev_info.queueCreateInfoCount = 1;
@@ -195,17 +195,17 @@ void liboceanlight::device::create_logical_device()
 		dev_data.dev_extensions.size());
 	dev_info.ppEnabledExtensionNames = dev_data.dev_extensions.data();
 
-	VkResult rv = vkCreateDevice(dev_data.physical_device,
+	VkResult rv = vkCreateDevice(dev_data.phys_device,
 								 &dev_info,
 								 nullptr,
-								 &dev_data.logical_device);
+								 &dev_data.device);
 
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create logical device");
 	}
 
-	vkGetDeviceQueue(dev_data.logical_device,
+	vkGetDeviceQueue(dev_data.device,
 					 dev_data.graphics_queue_index,
 					 0,
 					 &dev_data.graphics_queue);

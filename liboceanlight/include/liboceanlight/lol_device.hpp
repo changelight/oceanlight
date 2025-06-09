@@ -7,8 +7,8 @@ namespace liboceanlight::device
 {
 	using device_data = struct lol_device_data_struct
 	{
-		VkPhysicalDevice physical_device {VK_NULL_HANDLE};
-		VkDevice logical_device {VK_NULL_HANDLE};
+		VkPhysicalDevice phys_device {VK_NULL_HANDLE};
+		VkDevice device {VK_NULL_HANDLE};
 		static constexpr std::array dev_extensions {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 		VkPhysicalDeviceProperties device_props {};
@@ -16,8 +16,8 @@ namespace liboceanlight::device
 		uint32_t graphics_queue_index {UINT32_MAX};
 		VkQueue graphics_queue {nullptr};
 	};
-	void check_device_queue_support(VkSurfaceKHR&);
-	void create_physical_device(VkInstance&);
+	void check_device_queue_support(VkSurfaceKHR);
+	void create_physical_device(VkInstance);
 	void create_logical_device(void);
 } /* namespace liboceanlight::device */
 extern liboceanlight::device::device_data dev_data;

@@ -49,7 +49,7 @@ namespace liboceanlight::engine
 
 	/* PIPELINE */
 	//void create_render_pass(engine_data&, liboceanlight::window&);
-	void create_descriptor_set_layout(engine_data&);
+	//void create_descriptor_set_layout(engine_data&);
 	void create_pipeline(engine_data&);
 	VkShaderModule create_shader(engine_data&, const std::vector<char>&);
 	void create_framebuffers(engine_data&);

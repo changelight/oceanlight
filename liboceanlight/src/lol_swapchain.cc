@@ -1,16 +1,18 @@
 #include <stdexcept>
 #include <algorithm>
+#include <vulkan/vulkan_core.h>
 #include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_swapchain.hpp>
 #include <liboceanlight/lol_device.hpp>
 
 liboceanlight::swapchain::swapchain_data swap_data;
 
-void liboceanlight::swapchain::get_swapchain_details(
-	liboceanlight::window& window)
+void liboceanlight::swapchain::init_swapchain(liboceanlight::window& window,
+											  VkPhysicalDevice physical_device,
+											  VkDevice logical_device)
 {
 	VkResult rv = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-		dev_data.physical_device,
+		physical_device,
 		window.surface,
 		&window.surface_capabilities);
 
@@ -46,7 +48,7 @@ void liboceanlight::swapchain::get_swapchain_details(
 	}
 
 	uint32_t count {};
-	vkGetPhysicalDeviceSurfaceFormatsKHR(dev_data.physical_device,
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
 										 window.surface,
 										 &count,
 										 nullptr);
@@ -57,7 +59,7 @@ void liboceanlight::swapchain::get_swapchain_details(
 	}
 
 	std::vector<VkSurfaceFormatKHR> surface_formats(count);
-	rv = vkGetPhysicalDeviceSurfaceFormatsKHR(dev_data.physical_device,
+	rv = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device,
 											  window.surface,
 											  &count,
 											  surface_formats.data());
@@ -79,7 +81,7 @@ void liboceanlight::swapchain::get_swapchain_details(
 	}
 
 	count = 0;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(dev_data.physical_device,
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device,
 											  window.surface,
 											  &count,
 											  nullptr);
@@ -90,7 +92,7 @@ void liboceanlight::swapchain::get_swapchain_details(
 	}
 
 	std::vector<VkPresentModeKHR> present_modes(count);
-	rv = vkGetPhysicalDeviceSurfacePresentModesKHR(dev_data.physical_device,
+	rv = vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device,
 												   window.surface,
 												   &count,
 												   present_modes.data());
@@ -111,7 +113,8 @@ void liboceanlight::swapchain::get_swapchain_details(
 	}
 }
 
-void liboceanlight::swapchain::create_swapchain(liboceanlight::window& w)
+void liboceanlight::swapchain::create_swapchain(liboceanlight::window& w,
+												VkDevice logical_device)
 {
 	uint32_t img_count = w.surface_capabilities.minImageCount + 1;
 	uint32_t max_img_count = w.surface_capabilities.maxImageCount;
@@ -143,7 +146,7 @@ void liboceanlight::swapchain::create_swapchain(liboceanlight::window& w)
 	c_info.clipped = VK_TRUE;
 	c_info.oldSwapchain = VK_NULL_HANDLE;
 
-	VkResult rv = vkCreateSwapchainKHR(dev_data.logical_device,
+	VkResult rv = vkCreateSwapchainKHR(logical_device,
 									   &c_info,
 									   nullptr,
 									   &swap_data.swap_chain);
@@ -154,19 +157,20 @@ void liboceanlight::swapchain::create_swapchain(liboceanlight::window& w)
 	}
 
 	img_count = 0;
-	vkGetSwapchainImagesKHR(dev_data.logical_device,
+	vkGetSwapchainImagesKHR(logical_device,
 							swap_data.swap_chain,
 							&img_count,
 							nullptr);
 
 	swap_data.images.resize(img_count);
-	vkGetSwapchainImagesKHR(dev_data.logical_device,
+	vkGetSwapchainImagesKHR(logical_device,
 							swap_data.swap_chain,
 							&img_count,
 							swap_data.images.data());
 }
 
 VkImageView liboceanlight::swapchain::create_image_view(
+	VkDevice logical_device,
 	VkImage img,
 	VkFormat fmt,
 	VkImageAspectFlags flags)
@@ -187,7 +191,7 @@ VkImageView liboceanlight::swapchain::create_image_view(
 	c_info.subresourceRange.layerCount = 1;
 
 	VkImageView img_view {};
-	VkResult rv = vkCreateImageView(dev_data.logical_device,
+	VkResult rv = vkCreateImageView(logical_device,
 									&c_info,
 									nullptr,
 									&img_view);
@@ -200,13 +204,15 @@ VkImageView liboceanlight::swapchain::create_image_view(
 	return img_view;
 }
 
-void liboceanlight::swapchain::create_image_views(liboceanlight::window& w)
+void liboceanlight::swapchain::create_image_views(liboceanlight::window& w,
+												  VkDevice logical_device)
 {
 	const std::vector<int>::size_type n = swap_data.images.size();
 	swap_data.image_views.resize(n);
 	for (std::vector<int>::size_type i {0}; i < n; ++i)
 	{
 		swap_data.image_views[i] = create_image_view(
+			logical_device,
 			swap_data.images[i],
 			w.surface_format.format,
 			VK_IMAGE_ASPECT_COLOR_BIT);
