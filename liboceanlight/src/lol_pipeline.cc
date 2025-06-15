@@ -135,9 +135,8 @@ void liboceanlight::pipeline::create_pipeline(VkDevice device,
 	fs_info.pName = "main";
 
 	std::array shader_stages {vs_info, fs_info};
-	auto binding_desc = liboceanlight::engine::vertex::get_binding_desc();
-	auto attribute_descs =
-		liboceanlight::engine::vertex::get_attribute_descs();
+	auto binding_desc = engine::vertex::get_binding_desc();
+	auto attribute_descs = engine::vertex::get_attribute_descs();
 
 	VkPipelineVertexInputStateCreateInfo vi_info {};
 	vi_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

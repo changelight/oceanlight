@@ -10,6 +10,19 @@ namespace liboceanlight::resource
 	{
 	};
 	VkShaderModule create_shader(VkDevice, const std::vector<char>&);
+	void create_image(uint32_t,
+					  uint32_t,
+					  VkFormat,
+					  VkImageTiling,
+					  VkImageUsageFlags,
+					  VkMemoryPropertyFlags,
+					  VkImage&,
+					  VkDeviceMemory&);
+	void create_buffer(VkDeviceSize size,
+					   VkBufferUsageFlags usage,
+					   VkMemoryPropertyFlags props,
+					   VkBuffer& buff,
+					   VkDeviceMemory& buff_mem);
 } /* namespace liboceanlight::resource */
 extern liboceanlight::resource::resource_data res_data;
 #endif /* LIBOCEANLIGHT_RESOURCE_HPP_INCLUDED */

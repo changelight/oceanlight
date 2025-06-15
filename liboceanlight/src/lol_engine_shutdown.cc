@@ -22,9 +22,9 @@ void liboceanlight::engine::deinitialize(liboceanlight::window& w,
 {
 	cleanup_fences(eng_data);
 	cleanup_semaphores(eng_data);
-	cleanup_commands(eng_data);
+	cleanup_commands(init_data.command_pool);
 	cleanup_pipeline(eng_data);
-	cleanup_swapchain(eng_data);
+	cleanup_swapchain();
 	cleanup_images(eng_data);
 	cleanup_descriptor_pool(eng_data);
 	models::cleanup_models(eng_data, eng_data.model_list);
@@ -68,12 +68,12 @@ void liboceanlight::engine::cleanup_semaphores(engine_data& eng_data)
 	}
 }
 
-void liboceanlight::engine::cleanup_commands(engine_data& eng_data)
+void liboceanlight::engine::cleanup_commands(VkCommandPool command_pool)
 {
-	if (eng_data.command_pool)
+	if (init_data.command_pool)
 	{
 		vkDestroyCommandPool(dev_data.device,
-							 eng_data.command_pool,
+							 init_data.command_pool,
 							 nullptr);
 	}
 }
@@ -102,19 +102,19 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 	}
 }
 
-void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
+void liboceanlight::engine::cleanup_swapchain()
 {
 	vkDestroyImageView(dev_data.device,
-					   eng_data.depth_img_view,
+					   init_data.depth_img_view,
 					   nullptr);
-	vkDestroyImage(dev_data.device, eng_data.depth_img, nullptr);
-	vkFreeMemory(dev_data.device, eng_data.depth_img_mem, nullptr);
+	vkDestroyImage(dev_data.device, init_data.depth_img, nullptr);
+	vkFreeMemory(dev_data.device, init_data.depth_img_mem, nullptr);
 
-	const std::vector<int>::size_type fb_n = eng_data.frame_buffers.size();
+	const std::vector<int>::size_type fb_n = init_data.frame_buffers.size();
 	for (std::vector<int>::size_type i {0}; i < fb_n; ++i)
 	{
 		vkDestroyFramebuffer(dev_data.device,
-							 eng_data.frame_buffers[i],
+							 init_data.frame_buffers[i],
 							 nullptr);
 	}
 
@@ -137,13 +137,13 @@ void liboceanlight::engine::cleanup_swapchain(engine_data& eng_data)
 void liboceanlight::engine::cleanup_images(engine_data& eng_data)
 {
 	vkDestroySampler(dev_data.device,
-					 eng_data.texture_sampler,
+					 global_texture.texture_sampler,
 					 nullptr);
 	vkDestroyImageView(dev_data.device,
-					   eng_data.texture_img_view,
+					   global_texture.texture_img_view,
 					   nullptr);
-	vkDestroyImage(dev_data.device, eng_data.texture_img, nullptr);
-	vkFreeMemory(dev_data.device, eng_data.texture_img_mem, nullptr);
+	vkDestroyImage(dev_data.device, global_texture.texture_img, nullptr);
+	vkFreeMemory(dev_data.device, global_texture.texture_img_mem, nullptr);
 }
 
 void liboceanlight::engine::cleanup_descriptor_pool(engine_data& eng_data)

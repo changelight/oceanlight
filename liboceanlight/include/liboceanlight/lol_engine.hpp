@@ -1,13 +1,13 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
+#include <vector>
 #include <array>
-#include <config.h>
+#include <vulkan/vulkan_core.h>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 #include <liboceanlight/lol_window.hpp>
-#include <vector>
-#include <vulkan/vulkan_core.h>
+#include <config.h>
 
 extern double scroll_offset, cursor_posx, cursor_posy;
 namespace liboceanlight::engine
@@ -70,6 +70,18 @@ namespace liboceanlight::models
 	};
 }; /* namespace liboceanlight::models */
 
+namespace liboceanlight::texture
+{
+	using lol_texture = struct lol_texture_struct
+	{
+		VkImage texture_img {nullptr};
+		VkDeviceMemory texture_img_mem {nullptr};
+		VkImageView texture_img_view {nullptr};
+		VkSampler texture_sampler {nullptr};
+	};
+} /* namespace liboceanlight::texture */
+extern liboceanlight::texture::lol_texture global_texture;
+
 namespace liboceanlight::engine
 {
 
@@ -100,10 +112,10 @@ namespace liboceanlight::engine
 		/* DEVICE */
 		// VkPhysicalDevice physical_device {VK_NULL_HANDLE};
 		// VkDevice logical_device {VK_NULL_HANDLE};
-		static constexpr std::array dev_extensions {
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-		VkPhysicalDeviceProperties device_props {};
-		VkPhysicalDeviceFeatures supported_device_features {};
+		// static constexpr std::array dev_extensions {
+		// VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+		// VkPhysicalDeviceProperties device_props {};
+		// VkPhysicalDeviceFeatures supported_device_features {};
 
 		/* SURFACE */
 		// VkSurfaceKHR window_surface {nullptr};
@@ -120,7 +132,7 @@ namespace liboceanlight::engine
 		// VkPresentModeKHR present_mode;
 		// std::vector<VkImage> images;
 		// std::vector<VkImageView> image_views;
-		std::vector<VkFramebuffer> frame_buffers;
+		// std::vector<VkFramebuffer> frame_buffers;
 
 		/* PIPELINE */
 		VkDescriptorSetLayout descriptor_set_layout {nullptr};
@@ -130,14 +142,14 @@ namespace liboceanlight::engine
 
 		/* COMMAND */
 		static constexpr int max_frames_in_flight {2};
-		VkCommandPool command_pool {nullptr};
+		// VkCommandPool command_pool {nullptr};
 		std::array<VkCommandBuffer, max_frames_in_flight> command_buffers;
 
 		/* TEXTURE */
-		VkImage texture_img {nullptr};
-		VkDeviceMemory texture_img_mem {nullptr};
-		VkImageView texture_img_view {nullptr};
-		VkSampler texture_sampler {nullptr};
+		// VkImage texture_img {nullptr};
+		// VkDeviceMemory texture_img_mem {nullptr};
+		// VkImageView texture_img_view {nullptr};
+		// VkSampler texture_sampler {nullptr};
 
 		/* DRAW */
 		int current_frame {1};
@@ -163,10 +175,10 @@ namespace liboceanlight::engine
 		std::array<VkDescriptorSet, max_frames_in_flight> descriptor_sets;
 
 		/* DEPTH BUFFER */
-		VkImage depth_img {nullptr};
-		VkDeviceMemory depth_img_mem {nullptr};
-		VkImageView depth_img_view {nullptr};
-		VkFormat depth_fmt {VK_FORMAT_D32_SFLOAT};
+		// VkImage depth_img {nullptr};
+		// VkDeviceMemory depth_img_mem {nullptr};
+		// VkImageView depth_img_view {nullptr};
+		// VkFormat depth_fmt {VK_FORMAT_D32_SFLOAT};
 
 		/* VERTICES */
 		std::vector<vertex> vertices;
@@ -192,6 +204,7 @@ namespace liboceanlight::engine
 							   uint32_t,
 							   double);
 	void update_camera(liboceanlight::window&, float);
+	void texture_from_file(VkDevice, const char*, texture::lol_texture&);
 } /* namespace liboceanlight::engine */
 
 namespace std
