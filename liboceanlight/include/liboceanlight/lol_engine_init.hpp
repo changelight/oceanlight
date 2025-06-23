@@ -19,7 +19,7 @@ namespace liboceanlight::engine_init
 	};
 	void create_cmd_pool(void);
 	uint32_t find_mem_type(uint32_t, VkMemoryPropertyFlags);
-	void create_depth_image(VkDevice);
+	void create_depth_image();
 	VkCommandBuffer begin_single_time_cmds(void);
 	void end_single_time_cmds(VkCommandBuffer);
 	void transition_img_layout(VkImage,
@@ -36,6 +36,7 @@ namespace liboceanlight::engine
 {
 
 	int init(window&, engine_data&);
+
 	// void create_instance(engine_data&);
 	// void create_physical_device(engine_data&);
 
@@ -88,28 +89,27 @@ namespace liboceanlight::engine
 	//  void end_single_time_cmds(engine_data&, VkCommandBuffer&);
 
 	/* TEXTURE */
-	//void create_texture_img(engine_data&);
+	// void create_texture_img(engine_data&);
 	/*void transition_img_layout(engine_data&,
 							   VkImage,
 							   VkFormat,
 							   VkImageLayout,
 							   VkImageLayout);*/
-	void copy_buffer_to_img(VkBuffer, VkImage, uint32_t, uint32_t);
-	void create_texture_img_view(engine_data&);
-	void create_texture_sampler(engine_data&);
+	// void copy_buffer_to_img(VkBuffer, VkImage, uint32_t, uint32_t);
+	// void create_texture_sampler(VkDevice, float, VkSampler&);
 
 	/* VERTEX BUFFER */
-	void create_vertex_buffers(engine_data&);
+	// void create_vertex_buffers(engine_data&);
 	/* void create_buffer(engine_data&,
 					   VkDeviceSize,
 					   VkBufferUsageFlags,
 					   VkMemoryPropertyFlags,
 					   VkBuffer&,
 					   VkDeviceMemory&); */
-	void copy_buffer(engine_data&, VkBuffer, VkBuffer, VkDeviceSize);
+	// void copy_buffer(engine_data&, VkBuffer, VkBuffer, VkDeviceSize);
 
 	/* INDEX BUFFER */
-	void create_index_buffers(engine_data&);
+	// void create_index_buffers(engine_data&);
 
 	/* UNIFORM BUFFER */
 	void create_uniform_buffers(engine_data&);
@@ -122,6 +122,6 @@ namespace liboceanlight::engine
 	// void create_depth_resources(engine_data&);
 
 	/* MODELS */
-	void load_models(engine_data&);
+	// void load_models(engine_data&);
 } /* namespace liboceanlight::engine */
 #endif /* LIBOCEANLIGHT_ENGINE_INIT_HPP_INCLUDED */

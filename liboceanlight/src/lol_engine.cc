@@ -338,8 +338,7 @@ void liboceanlight::engine::update_camera(liboceanlight::window& window,
 	}
 }
 
-void liboceanlight::engine::upload_buffer(engine_data& eng_data,
-										  const void* buff,
+void liboceanlight::engine::upload_buffer(const void* buff,
 										  VkDeviceSize buff_size,
 										  VkBufferUsageFlagBits usage,
 										  VkBuffer& dst,
@@ -352,24 +351,24 @@ void liboceanlight::engine::upload_buffer(engine_data& eng_data,
 
 	VkBuffer staging_buff {nullptr};
 	VkDeviceMemory staging_buff_mem {nullptr};
-	resource::create_buffer(buff_size,
-							VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-								VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-							staging_buff,
-							staging_buff_mem);
+	resource::buffer(buff_size,
+					 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+						 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+					 staging_buff,
+					 staging_buff_mem);
 
 	void* data {};
 	vkMapMemory(dev_data.device, staging_buff_mem, 0, buff_size, 0, &data);
 	memcpy(data, buff, (size_t)buff_size);
 	vkUnmapMemory(dev_data.device, staging_buff_mem);
 
-	resource::create_buffer(buff_size,
-							VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
-							VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-							dst,
-							dst_mem);
-	copy_buffer(eng_data, staging_buff, dst, buff_size);
+	resource::buffer(buff_size,
+					 VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage,
+					 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+					 dst,
+					 dst_mem);
+	utility::copy_buffer(staging_buff, dst, buff_size);
 
 	vkDestroyBuffer(dev_data.device, staging_buff, nullptr);
 	vkFreeMemory(dev_data.device, staging_buff_mem, nullptr);
@@ -392,7 +391,7 @@ void liboceanlight::engine::recreate_swapchain(liboceanlight::window& w,
 	swapchain::init_swapchain(w, dev_data.phys_device, dev_data.device);
 	swapchain::create_swapchain(w, dev_data.device);
 	swapchain::create_image_views(w, dev_data.device);
-	engine_init::create_depth_image(dev_data.device);
+	engine_init::create_depth_image();
 	engine_init::create_framebuffers(dev_data.device,
 									 pipe_data.render_pass,
 									 swap_data);

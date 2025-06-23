@@ -14,7 +14,7 @@ TEST(HelloTest, BasicAssertions)
 TEST(basic_tests, test_func_returns_a_plus_b)
 {
 	int a = 42, b = 12;
-	EXPECT_EQ(liboceanlight::test_func(a, b), a + b);
+	EXPECT_EQ(liboceanlight::utility::test_func(a, b), a + b);
 }
 
 /*

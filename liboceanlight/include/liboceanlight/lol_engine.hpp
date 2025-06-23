@@ -22,6 +22,7 @@ namespace liboceanlight::engine
 
 		glm::vec3 pos;
 		glm::vec3 color;
+		glm::vec3 normal;
 		glm::vec2 texcoord;
 
 		static VkVertexInputBindingDescription get_binding_desc()
@@ -62,7 +63,7 @@ namespace liboceanlight::models
 {
 	using lol_model = struct lol_model_struct
 	{
-		std::string name;
+		std::string path;
 		std::vector<liboceanlight::engine::vertex> vertices;
 		std::vector<uint32_t> indices;
 		VkBuffer vertex_buffer, index_buffer;
@@ -193,8 +194,7 @@ namespace liboceanlight::engine
 	void draw_frame(liboceanlight::window&, engine_data&, double);
 	void record_cmd_buffer(engine_data&, VkCommandBuffer&, uint32_t);
 	void recreate_swapchain(liboceanlight::window&, engine_data&);
-	void upload_buffer(engine_data&,
-					   const void*,
+	void upload_buffer(const void*,
 					   VkDeviceSize,
 					   VkBufferUsageFlagBits,
 					   VkBuffer&,

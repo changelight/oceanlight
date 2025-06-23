@@ -1,13 +1,17 @@
 #include <fstream>
 #include <iostream>
-#include <liboceanlight/lol_utility.hpp>
 #include <map>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <gsl/gsl>
 #include <vulkan/vulkan_core.h>
+#include <liboceanlight/lol_utility.hpp>
+#include <liboceanlight/lol_engine_init.hpp>
+#include <liboceanlight/lol_engine.hpp>
 
-std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
+std::string liboceanlight::utility::queue_flags_to_string(
+	const VkQueueFlags& flags)
 {
 	std::stringstream formatted;
 
@@ -32,7 +36,8 @@ std::string liboceanlight::queue_flags_to_string(const VkQueueFlags& flags)
 	return formatted.str() + "|";
 }
 
-const std::vector<char> liboceanlight::read_file(const std::string& path)
+const std::vector<char> liboceanlight::utility::read_file(
+	const std::string& path)
 {
 	std::ifstream file(path, std::ios::ate | std::ios::binary);
 
@@ -50,7 +55,63 @@ const std::vector<char> liboceanlight::read_file(const std::string& path)
 	return buffer;
 }
 
-int liboceanlight::test_func(int a, int b)
+void liboceanlight::utility::copy_buffer(VkBuffer src,
+										 VkBuffer dst,
+										 VkDeviceSize size)
+{
+	VkCommandBuffer cmd_buffer {engine_init::begin_single_time_cmds()};
+	VkBufferCopy copy_region {};
+	copy_region.size = size;
+	vkCmdCopyBuffer(cmd_buffer, src, dst, 1, &copy_region);
+	engine_init::end_single_time_cmds(cmd_buffer);
+}
+
+void liboceanlight::utility::copy_buffer_to_img(VkBuffer buff,
+												VkImage img,
+												uint32_t width,
+												uint32_t height)
+{
+	VkCommandBuffer cmd_buffer {engine_init::begin_single_time_cmds()};
+	VkBufferImageCopy region {};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageOffset = {0, 0, 0};
+	region.imageExtent = {width, height, 1};
+	vkCmdCopyBufferToImage(cmd_buffer,
+						   buff,
+						   img,
+						   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+						   1,
+						   &region);
+
+	engine_init::end_single_time_cmds(cmd_buffer);
+}
+
+uint32_t liboceanlight::utility::find_mem_type(VkPhysicalDevice phys_device,
+											   uint32_t type_filter,
+											   VkMemoryPropertyFlags flags)
+{
+	VkPhysicalDeviceMemoryProperties mem_props;
+	vkGetPhysicalDeviceMemoryProperties(phys_device, &mem_props);
+
+	for (uint32_t i {0}; i < mem_props.memoryTypeCount; ++i)
+	{
+		if ((type_filter & (1 << i)) &&
+			(gsl::at(mem_props.memoryTypes, i).propertyFlags & flags) == flags)
+		{
+			return i;
+		}
+	}
+
+	throw std::runtime_error("Couldn't find suitable memory type");
+}
+
+int liboceanlight::utility::test_func(int a, int b)
 {
 	return a + b;
 }

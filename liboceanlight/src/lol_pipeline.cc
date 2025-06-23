@@ -116,11 +116,11 @@ void liboceanlight::pipeline::create_descriptor_set_layout(VkDevice device)
 void liboceanlight::pipeline::create_pipeline(VkDevice device,
 											  VkExtent2D& extent)
 {
-	const auto vs_code = read_file(SHADER_PATH "vertex_shader.spv");
-	const auto fs_code = read_file(SHADER_PATH "fragment_shader.spv");
+	const auto vs_code = utility::read_file(SHADER_PATH "vertex_shader.spv");
+	const auto fs_code = utility::read_file(SHADER_PATH "fragment_shader.spv");
 
-	VkShaderModule vs = resource::create_shader(device, vs_code);
-	VkShaderModule fs = resource::create_shader(device, fs_code);
+	VkShaderModule vs = resource::shader(device, vs_code);
+	VkShaderModule fs = resource::shader(device, fs_code);
 
 	VkPipelineShaderStageCreateInfo vs_info {};
 	vs_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
