@@ -2,7 +2,6 @@
 #include <chrono>
 #include <config.h>
 #include <cstring>
-#include <gsl/gsl>
 #include <vector>
 #include <vulkan/vulkan.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -54,19 +53,18 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 									   engine_data& eng_data,
 									   double dt)
 {
-	vkWaitForFences(
-		dev_data.device,
-		1,
-		&gsl::at(eng_data.in_flight_fences, eng_data.current_frame),
-		VK_TRUE,
-		UINT64_MAX);
+	vkWaitForFences(dev_data.device,
+					1,
+					&eng_data.in_flight_fences[eng_data.current_frame],
+					VK_TRUE,
+					UINT64_MAX);
 
 	uint32_t image_index {};
 	VkResult rv = vkAcquireNextImageKHR(
 		dev_data.device,
 		swap_data.swap_chain,
 		UINT64_MAX,
-		gsl::at(eng_data.wait_sems, eng_data.current_frame),
+		eng_data.wait_sems[eng_data.current_frame],
 		VK_NULL_HANDLE,
 		&image_index);
 
@@ -82,25 +80,23 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 
 	vkResetFences(dev_data.device,
 				  1,
-				  &gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
+				  &eng_data.in_flight_fences[eng_data.current_frame]);
 
-	vkResetCommandBuffer(
-		gsl::at(eng_data.command_buffers, eng_data.current_frame),
-		0);
-	record_cmd_buffer(
-		eng_data,
-		gsl::at(eng_data.command_buffers, eng_data.current_frame),
-		image_index);
+	// vkResetCommandPool(dev_data.device, init_data.command_pool, 0);
+	vkResetCommandBuffer(eng_data.command_buffers[eng_data.current_frame], 0);
+	record_cmd_buffer(eng_data,
+					  eng_data.command_buffers[eng_data.current_frame],
+					  image_index);
 
 	update_uniform_buffer(eng_data, window, eng_data.current_frame, dt);
 
 	VkSubmitInfo submit_info {};
-	std::array signal {gsl::at(eng_data.signal_sems, eng_data.current_frame)};
+	std::array signal {eng_data.signal_sems[eng_data.current_frame]};
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal.data();
 
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	std::array wait {gsl::at(eng_data.wait_sems, eng_data.current_frame)};
+	std::array wait {eng_data.wait_sems[eng_data.current_frame]};
 	const VkPipelineStageFlags wait_stages {
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
@@ -108,14 +104,13 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	submit_info.pWaitSemaphores = wait.data();
 	submit_info.pWaitDstStageMask = &wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &gsl::at(eng_data.command_buffers,
-										   eng_data.current_frame);
+	submit_info.pCommandBuffers =
+		&eng_data.command_buffers[eng_data.current_frame];
 
-	rv = vkQueueSubmit(
-		dev_data.graphics_queue,
-		1,
-		&submit_info,
-		gsl::at(eng_data.in_flight_fences, eng_data.current_frame));
+	rv = vkQueueSubmit(dev_data.graphics_queue,
+					   1,
+					   &submit_info,
+					   eng_data.in_flight_fences[eng_data.current_frame]);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -156,7 +151,7 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 {
 	VkCommandBufferBeginInfo begin_info {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	begin_info.flags = 0;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	begin_info.pInheritanceInfo = nullptr;
 
 	VkResult rv = vkBeginCommandBuffer(cmd_buffer, &begin_info);
@@ -166,7 +161,7 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 		throw std::runtime_error("Failed to begin recording command buffer");
 	}
 
-	VkClearValue color_clear_val {{0.0f, 0.0f, 0.0f, 1.0f}};
+	VkClearValue color_clear_val {{0.0f, 0.0f, 0.0f, 0.0f}};
 	VkClearValue depth_stencil_clear_val {1.0f, 0};
 	std::array<VkClearValue, 2> clear_values {color_clear_val,
 											  depth_stencil_clear_val};
@@ -184,15 +179,14 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 					  VK_PIPELINE_BIND_POINT_GRAPHICS,
 					  pipe_data.pipeline);
 
-	vkCmdBindDescriptorSets(
-		cmd_buffer,
-		VK_PIPELINE_BIND_POINT_GRAPHICS,
-		pipe_data.pipeline_layout,
-		0,
-		1,
-		&gsl::at(eng_data.descriptor_sets, eng_data.current_frame),
-		0,
-		nullptr);
+	vkCmdBindDescriptorSets(cmd_buffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,
+							pipe_data.pipeline_layout,
+							0,
+							1,
+							&eng_data.descriptor_sets[eng_data.current_frame],
+							0,
+							nullptr);
 
 	VkViewport viewport {};
 	viewport.x = 0.0f;
@@ -299,9 +293,7 @@ void liboceanlight::engine::update_uniform_buffer(
 		zfar);
 	ubo.proj[1][1] *= -1;
 
-	memcpy(gsl::at(eng_data.uniform_buffers_mapped, current_image),
-		   &ubo,
-		   sizeof(ubo));
+	memcpy(eng_data.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
 }
 
 void liboceanlight::engine::update_camera(liboceanlight::window& window,

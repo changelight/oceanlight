@@ -48,6 +48,7 @@ int liboceanlight::engine::init(liboceanlight::window& window,
 		dev_data.device_props.limits.maxSamplerAnisotropy,
 		global_texture.texture_sampler);
 
+	/* Load model files from a directory */
 	for (const auto& file : fs::directory_iterator(MODEL_PATH))
 	{
 		static int n {0};
@@ -55,13 +56,33 @@ int liboceanlight::engine::init(liboceanlight::window& window,
 										 file.path().filename().string());
 		resource::model_from_obj(eng_data.model_list[n].path.c_str(),
 								 eng_data.model_list[n]);
-		std::cout << n << "\n";
 		++n;
 	}
 
-	create_uniform_buffers(eng_data);
-	create_descriptor_pool(eng_data);
-	create_descriptor_sets(eng_data);
+	/* Create 1 uniform buffer per frame in flight */
+	for (auto i {0}; i < eng_data.max_frames_in_flight; ++i)
+	{
+		resource::uniform_buffer(eng_data.uniform_buffers[i],
+								 eng_data.uniform_buffers_mem[i],
+								 &eng_data.uniform_buffers_mapped[i]);
+	}
+
+	/*resource::uniform_buffer(eng_data.model_list[0].uniform,
+							 eng_data.model_list[0].uniform_mem,
+							 &eng_data.model_list[0].uniform_mapped);*/
+
+	/* Describes how many descriptors (not sets) of each type will be in the
+	 * descriptor pool */
+	std::array<VkDescriptorPoolSize, 2> pool_sizes;
+	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	pool_sizes[0].descriptorCount = static_cast<uint32_t>(
+		eng_data.max_frames_in_flight);
+	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	pool_sizes[1].descriptorCount = static_cast<uint32_t>(
+		eng_data.max_frames_in_flight);
+
+	resource::descriptor_pool(pool_sizes.data(), pool_sizes.size(), eng_data);
+	resource::descriptor_set(eng_data);
 	create_cmd_buffer(eng_data);
 	create_sync_objects(eng_data);
 
@@ -184,8 +205,7 @@ void liboceanlight::engine_init::end_single_time_cmds(
 
 bool has_stencil_component(VkFormat format)
 {
-	return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
-		   format == VK_FORMAT_D24_UNORM_S8_UINT;
+	return format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 void liboceanlight::engine_init::transition_img_layout(
@@ -267,116 +287,6 @@ void liboceanlight::engine_init::transition_img_layout(
 						 &barrier);
 
 	engine_init::end_single_time_cmds(cmd_buffer);
-}
-
-void liboceanlight::engine::create_uniform_buffers(engine_data& eng_data)
-{
-	VkDeviceSize buff_size {sizeof(uniform_buffer_object)};
-
-	for (auto i {0}; i < eng_data.max_frames_in_flight; ++i)
-	{
-		resource::buffer(buff_size,
-						 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-						 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-							 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-						 gsl::at(eng_data.uniform_buffers, i),
-						 gsl::at(eng_data.uniform_buffers_mem, i));
-
-		vkMapMemory(dev_data.device,
-					gsl::at(eng_data.uniform_buffers_mem, i),
-					0,
-					buff_size,
-					0,
-					&gsl::at(eng_data.uniform_buffers_mapped, i));
-	}
-}
-
-void liboceanlight::engine::create_descriptor_pool(engine_data& eng_data)
-{
-	std::array<VkDescriptorPoolSize, 2> pool_sizes {};
-	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[0].descriptorCount = static_cast<uint32_t>(
-		eng_data.max_frames_in_flight);
-	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[1].descriptorCount = static_cast<uint32_t>(
-		eng_data.max_frames_in_flight);
-
-	VkDescriptorPoolCreateInfo pool_info {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
-	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
-
-	VkResult rv = vkCreateDescriptorPool(dev_data.device,
-										 &pool_info,
-										 nullptr,
-										 &eng_data.descriptor_pool);
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to create descriptor pool");
-	}
-}
-
-void liboceanlight::engine::create_descriptor_sets(engine_data& eng_data)
-{
-	std::vector<VkDescriptorSetLayout> layouts(
-		eng_data.max_frames_in_flight,
-		pipe_data.descriptor_set_layout);
-
-	VkDescriptorSetAllocateInfo alloc_info {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	alloc_info.descriptorPool = eng_data.descriptor_pool;
-	alloc_info.descriptorSetCount = static_cast<uint32_t>(
-		eng_data.max_frames_in_flight);
-	alloc_info.pSetLayouts = layouts.data();
-
-	VkResult rv = vkAllocateDescriptorSets(dev_data.device,
-										   &alloc_info,
-										   eng_data.descriptor_sets.data());
-
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to allocate descriptor sets");
-	}
-
-	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
-	{
-		VkDescriptorBufferInfo buff_info {};
-		buff_info.buffer = gsl::at(eng_data.uniform_buffers, i);
-		buff_info.offset = 0;
-		buff_info.range = sizeof(uniform_buffer_object);
-
-		VkDescriptorImageInfo image_info {};
-		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		image_info.imageView = global_texture.texture_img_view;
-		image_info.sampler = global_texture.texture_sampler;
-
-		std::array<VkWriteDescriptorSet, 2> descriptor_writes {};
-		descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptor_writes[0].dstSet = gsl::at(eng_data.descriptor_sets, i);
-		descriptor_writes[0].dstBinding = 0;
-		descriptor_writes[0].dstArrayElement = 0;
-		descriptor_writes[0].descriptorType =
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptor_writes[0].descriptorCount = 1;
-		descriptor_writes[0].pBufferInfo = &buff_info;
-
-		descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptor_writes[1].dstSet = gsl::at(eng_data.descriptor_sets, i);
-		descriptor_writes[1].dstBinding = 1;
-		descriptor_writes[1].dstArrayElement = 0;
-		descriptor_writes[1].descriptorType =
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptor_writes[1].descriptorCount = 1;
-		descriptor_writes[1].pImageInfo = &image_info;
-
-		vkUpdateDescriptorSets(dev_data.device,
-							   static_cast<uint32_t>(descriptor_writes.size()),
-							   descriptor_writes.data(),
-							   0,
-							   nullptr);
-	}
 }
 
 void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)

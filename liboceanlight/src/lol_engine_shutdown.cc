@@ -72,9 +72,7 @@ void liboceanlight::engine::cleanup_commands(VkCommandPool command_pool)
 {
 	if (init_data.command_pool)
 	{
-		vkDestroyCommandPool(dev_data.device,
-							 init_data.command_pool,
-							 nullptr);
+		vkDestroyCommandPool(dev_data.device, init_data.command_pool, nullptr);
 	}
 }
 
@@ -82,9 +80,7 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 {
 	if (pipe_data.pipeline)
 	{
-		vkDestroyPipeline(dev_data.device,
-						  pipe_data.pipeline,
-						  nullptr);
+		vkDestroyPipeline(dev_data.device, pipe_data.pipeline, nullptr);
 	}
 
 	if (pipe_data.pipeline_layout)
@@ -96,17 +92,13 @@ void liboceanlight::engine::cleanup_pipeline(engine_data& eng_data)
 
 	if (pipe_data.render_pass)
 	{
-		vkDestroyRenderPass(dev_data.device,
-							pipe_data.render_pass,
-							nullptr);
+		vkDestroyRenderPass(dev_data.device, pipe_data.render_pass, nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_swapchain()
 {
-	vkDestroyImageView(dev_data.device,
-					   init_data.depth_img_view,
-					   nullptr);
+	vkDestroyImageView(dev_data.device, init_data.depth_img_view, nullptr);
 	vkDestroyImage(dev_data.device, init_data.depth_img, nullptr);
 	vkFreeMemory(dev_data.device, init_data.depth_img_mem, nullptr);
 
@@ -121,24 +113,18 @@ void liboceanlight::engine::cleanup_swapchain()
 	const std::vector<int>::size_type iv_n {swap_data.image_views.size()};
 	for (std::vector<int>::size_type i {0}; i < iv_n; ++i)
 	{
-		vkDestroyImageView(dev_data.device,
-						   swap_data.image_views[i],
-						   nullptr);
+		vkDestroyImageView(dev_data.device, swap_data.image_views[i], nullptr);
 	}
 
 	if (swap_data.swap_chain)
 	{
-		vkDestroySwapchainKHR(dev_data.device,
-							  swap_data.swap_chain,
-							  nullptr);
+		vkDestroySwapchainKHR(dev_data.device, swap_data.swap_chain, nullptr);
 	}
 }
 
 void liboceanlight::engine::cleanup_images(engine_data& eng_data)
 {
-	vkDestroySampler(dev_data.device,
-					 global_texture.texture_sampler,
-					 nullptr);
+	vkDestroySampler(dev_data.device, global_texture.texture_sampler, nullptr);
 	vkDestroyImageView(dev_data.device,
 					   global_texture.texture_img_view,
 					   nullptr);
@@ -178,6 +164,23 @@ void liboceanlight::engine::cleanup_uniform_buffers(engine_data& eng_data)
 						 gsl::at(eng_data.uniform_buffers_mem,
 								 static_cast<long long>(i)),
 						 nullptr);
+		}
+	}
+
+	for (auto i {0}; i < eng_data.model_list.size(); ++i)
+	{
+		if (eng_data.model_list[i].uniform_mapped)
+		{
+			vkFreeMemory(dev_data.device,
+						 eng_data.model_list[i].uniform_mem,
+						 nullptr);
+		}
+
+		if (eng_data.model_list[i].uniform)
+		{
+			vkDestroyBuffer(dev_data.device,
+							eng_data.model_list[i].uniform,
+							nullptr);
 		}
 	}
 }

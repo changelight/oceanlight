@@ -7,7 +7,7 @@ namespace liboceanlight::pipeline
 {
 	using pipeline_data = struct lol_pipeline_data_struct
 	{
-		VkFormat depth_fmt {VK_FORMAT_D32_SFLOAT};
+		VkFormat depth_fmt {VK_FORMAT_D24_UNORM_S8_UINT};
 		VkRenderPass render_pass {nullptr};
 		VkDescriptorSetLayout descriptor_set_layout {nullptr};
 		VkPipelineLayout pipeline_layout {nullptr};

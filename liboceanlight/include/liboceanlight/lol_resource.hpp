@@ -28,6 +28,11 @@ namespace liboceanlight::resource
 	void texture_img_view(VkImage&);
 	void texture_sampler(float, VkSampler&);
 	void model_from_obj(const char*, models::lol_model&);
+	void uniform_buffer(VkBuffer&, VkDeviceMemory&, void**);
+	void descriptor_pool(VkDescriptorPoolSize*,
+						 uint32_t,
+						 engine::engine_data&);
+	void descriptor_set(engine::engine_data& eng_data);
 } /* namespace liboceanlight::resource */
 extern liboceanlight::resource::resource_data res_data;
 #endif /* LIBOCEANLIGHT_RESOURCE_HPP_INCLUDED */

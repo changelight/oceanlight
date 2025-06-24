@@ -14,7 +14,7 @@ namespace liboceanlight::engine_init
 		VkImage depth_img {nullptr};
 		VkDeviceMemory depth_img_mem {nullptr};
 		VkImageView depth_img_view {nullptr};
-		VkFormat depth_fmt {VK_FORMAT_D32_SFLOAT};
+		VkFormat depth_fmt {VK_FORMAT_D24_UNORM_S8_UINT};
 		std::vector<VkFramebuffer> frame_buffers;
 	};
 	void create_cmd_pool(void);
@@ -112,11 +112,11 @@ namespace liboceanlight::engine
 	// void create_index_buffers(engine_data&);
 
 	/* UNIFORM BUFFER */
-	void create_uniform_buffers(engine_data&);
+	// void create_uniform_buffers(engine_data&);
 
 	/* DESCRIPTOR */
-	void create_descriptor_pool(engine_data&);
-	void create_descriptor_sets(engine_data&);
+	// void create_descriptor_pool(engine_data&);
+	// void create_descriptor_sets(engine_data&);
 
 	/* DEPTH BUFFER */
 	// void create_depth_resources(engine_data&);

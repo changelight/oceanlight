@@ -1,12 +1,16 @@
+#include <cstdint>
 #include <vector>
+#include <iostream>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 #include <stb_image.h>
 #include <tiny_obj_loader.h>
+#include <gsl/gsl>
 #include <liboceanlight/lol_resource.hpp>
 #include <liboceanlight/lol_device.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_pipeline.hpp>
 #include <liboceanlight/lol_utility.hpp>
 
 void liboceanlight::resource::buffer(VkDeviceSize size,
@@ -45,6 +49,15 @@ void liboceanlight::resource::buffer(VkDeviceSize size,
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate vertex buffer memory");
+	}
+
+	PFN_vkSetDeviceMemoryPriorityEXT vkSetDeviceMemoryPriorityEXT_ {nullptr};
+	vkSetDeviceMemoryPriorityEXT_ = (PFN_vkSetDeviceMemoryPriorityEXT)
+		vkGetDeviceProcAddr(dev_data.device, "vkSetDeviceMemoryPriorityEXT");
+
+	if (vkSetDeviceMemoryPriorityEXT_)
+	{
+		vkSetDeviceMemoryPriorityEXT_(dev_data.device, buff_mem, 1.0);
 	}
 
 	vkBindBufferMemory(dev_data.device, buff, buff_mem, 0);
@@ -122,6 +135,15 @@ void liboceanlight::resource::image(uint32_t width,
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate image memory");
+	}
+
+	PFN_vkSetDeviceMemoryPriorityEXT vkSetDeviceMemoryPriorityEXT_ {nullptr};
+	vkSetDeviceMemoryPriorityEXT_ = (PFN_vkSetDeviceMemoryPriorityEXT)
+		vkGetDeviceProcAddr(dev_data.device, "vkSetDeviceMemoryPriorityEXT");
+
+	if (vkSetDeviceMemoryPriorityEXT_)
+	{
+		vkSetDeviceMemoryPriorityEXT_(dev_data.device, image_mem, 1.0);
 	}
 
 	vkBindImageMemory(dev_data.device, image, image_mem, 0);
@@ -308,66 +330,100 @@ void liboceanlight::resource::model_from_obj(const char* path,
 						  model.index_buffer_mem);
 }
 
-/*
-void liboceanlight::engine::create_vk_resource()
+void liboceanlight::resource::uniform_buffer(VkBuffer& buffer,
+											 VkDeviceMemory& memory,
+											 void** mapped)
 {
+	VkDeviceSize buff_size {sizeof(engine::uniform_buffer_object)};
 
+	resource::buffer(buff_size,
+					 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+					 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+						 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+					 buffer,
+					 memory);
+
+	vkMapMemory(dev_data.device, memory, 0, buff_size, 0, mapped);
 }
 
-void liboceanlight::engine::create_image(engine_data& eng_data,
-										 uint32_t width,
-										 uint32_t height,
-										 VkFormat fmt,
-										 VkImageTiling tiling,
-										 VkImageUsageFlags usage,
-										 VkMemoryPropertyFlags props,
-										 VkImage& image,
-										 VkDeviceMemory& image_mem)
+void liboceanlight::resource::descriptor_pool(VkDescriptorPoolSize* pool_sizes,
+											  uint32_t size_count,
+											  engine::engine_data& eng_data)
 {
-	VkImageCreateInfo image_info {};
-	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	image_info.imageType = VK_IMAGE_TYPE_2D;
-	image_info.extent.width = static_cast<uint32_t>(width);
-	image_info.extent.height = static_cast<uint32_t>(height);
-	image_info.extent.depth = 1;
-	image_info.mipLevels = 1;
-	image_info.arrayLayers = 1;
-	image_info.format = fmt;
-	image_info.tiling = tiling;
-	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_info.usage = usage;
-	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-	image_info.flags = 0;
+	VkDescriptorPoolCreateInfo pool_info {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.poolSizeCount = size_count;
+	pool_info.pPoolSizes = pool_sizes;
+	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
 
-	VkResult rv {};
-	rv = vkCreateImage(eng_data.logical_device, &image_info, nullptr, &image);
+	VkResult rv = vkCreateDescriptorPool(dev_data.device,
+										 &pool_info,
+										 nullptr,
+										 &eng_data.descriptor_pool);
 
 	if (rv != VK_SUCCESS)
 	{
-		throw std::runtime_error("Failed to create image");
+		throw std::runtime_error("Failed to create descriptor pool");
 	}
+}
 
-	VkMemoryRequirements mem_reqs {};
-	vkGetImageMemoryRequirements(eng_data.logical_device, image, &mem_reqs);
+void liboceanlight::resource::descriptor_set(engine::engine_data& eng_data)
+{
+	std::vector<VkDescriptorSetLayout> layouts(
+		eng_data.max_frames_in_flight,
+		pipe_data.descriptor_set_layout);
 
-	VkMemoryAllocateInfo alloc_info {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	alloc_info.allocationSize = mem_reqs.size;
-	alloc_info.memoryTypeIndex = find_mem_type(eng_data,
-											   mem_reqs.memoryTypeBits,
-											   props);
+	VkDescriptorSetAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	alloc_info.descriptorPool = eng_data.descriptor_pool;
+	alloc_info.descriptorSetCount = static_cast<uint32_t>(
+		eng_data.max_frames_in_flight);
+	alloc_info.pSetLayouts = layouts.data();
 
-	rv = vkAllocateMemory(eng_data.logical_device,
-						  &alloc_info,
-						  nullptr,
-						  &image_mem);
+	VkResult rv = vkAllocateDescriptorSets(dev_data.device,
+										   &alloc_info,
+										   eng_data.descriptor_sets.data());
 
 	if (rv != VK_SUCCESS)
 	{
-		throw std::runtime_error("Failed to allocate image memory");
+		throw std::runtime_error("Failed to allocate descriptor sets");
 	}
 
-	vkBindImageMemory(eng_data.logical_device, image, image_mem, 0);
+	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
+	{
+		VkDescriptorBufferInfo buff_info {};
+		buff_info.buffer = gsl::at(eng_data.uniform_buffers, i);
+		buff_info.offset = 0;
+		buff_info.range = sizeof(engine::uniform_buffer_object);
+
+		VkDescriptorImageInfo image_info {};
+		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info.imageView = global_texture.texture_img_view;
+		image_info.sampler = global_texture.texture_sampler;
+
+		std::array<VkWriteDescriptorSet, 2> descriptor_writes {};
+		descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptor_writes[0].dstSet = gsl::at(eng_data.descriptor_sets, i);
+		descriptor_writes[0].dstBinding = 0;
+		descriptor_writes[0].dstArrayElement = 0;
+		descriptor_writes[0].descriptorType =
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptor_writes[0].descriptorCount = 1;
+		descriptor_writes[0].pBufferInfo = &buff_info;
+
+		descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptor_writes[1].dstSet = gsl::at(eng_data.descriptor_sets, i);
+		descriptor_writes[1].dstBinding = 1;
+		descriptor_writes[1].dstArrayElement = 0;
+		descriptor_writes[1].descriptorType =
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptor_writes[1].descriptorCount = 1;
+		descriptor_writes[1].pImageInfo = &image_info;
+
+		vkUpdateDescriptorSets(dev_data.device,
+							   static_cast<uint32_t>(descriptor_writes.size()),
+							   descriptor_writes.data(),
+							   0,
+							   nullptr);
+	}
 }
-*/

@@ -66,8 +66,11 @@ namespace liboceanlight::models
 		std::string path;
 		std::vector<liboceanlight::engine::vertex> vertices;
 		std::vector<uint32_t> indices;
-		VkBuffer vertex_buffer, index_buffer;
-		VkDeviceMemory vertex_buffer_mem, index_buffer_mem;
+		VkBuffer vertex_buffer {nullptr}, index_buffer {nullptr},
+			uniform {nullptr};
+		VkDeviceMemory vertex_buffer_mem {nullptr}, index_buffer_mem {nullptr},
+			uniform_mem {nullptr};
+		void* uniform_mapped {nullptr};
 	};
 }; /* namespace liboceanlight::models */
 
@@ -85,7 +88,6 @@ extern liboceanlight::texture::lol_texture global_texture;
 
 namespace liboceanlight::engine
 {
-
 	struct lol_camera
 	{
 		float movement_speed {0.0025f};
@@ -136,10 +138,10 @@ namespace liboceanlight::engine
 		// std::vector<VkFramebuffer> frame_buffers;
 
 		/* PIPELINE */
-		VkDescriptorSetLayout descriptor_set_layout {nullptr};
-		VkPipelineLayout pipeline_layout {nullptr};
-		VkRenderPass render_pass {nullptr};
-		VkPipeline graphics_pipeline {nullptr};
+		// VkDescriptorSetLayout descriptor_set_layout {nullptr};
+		// VkPipelineLayout pipeline_layout {nullptr};
+		// VkRenderPass render_pass {nullptr};
+		// VkPipeline graphics_pipeline {nullptr};
 
 		/* COMMAND */
 		static constexpr int max_frames_in_flight {2};
@@ -159,12 +161,12 @@ namespace liboceanlight::engine
 		std::array<VkFence, max_frames_in_flight> in_flight_fences;
 
 		/* VERTEX BUFFER */
-		VkBuffer vertex_buffer {nullptr};
-		VkDeviceMemory vertex_buffer_mem {nullptr};
+		// VkBuffer vertex_buffer {nullptr};
+		// VkDeviceMemory vertex_buffer_mem {nullptr};
 
 		/* INDEX BUFFER */
-		VkBuffer index_buffer {nullptr};
-		VkDeviceMemory index_buffer_mem {nullptr};
+		// VkBuffer index_buffer {nullptr};
+		// VkDeviceMemory index_buffer_mem {nullptr};
 
 		/* UNIFORM BUFFER */
 		std::array<VkBuffer, max_frames_in_flight> uniform_buffers;
@@ -204,7 +206,7 @@ namespace liboceanlight::engine
 							   uint32_t,
 							   double);
 	void update_camera(liboceanlight::window&, float);
-	void texture_from_file(VkDevice, const char*, texture::lol_texture&);
+	// void texture_from_file(VkDevice, const char*, texture::lol_texture&);
 } /* namespace liboceanlight::engine */
 
 namespace std

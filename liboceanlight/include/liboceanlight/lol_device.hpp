@@ -10,7 +10,9 @@ namespace liboceanlight::device
 		VkPhysicalDevice phys_device {VK_NULL_HANDLE};
 		VkDevice device {VK_NULL_HANDLE};
 		static constexpr std::array dev_extensions {
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME,
+			VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME};
 		VkPhysicalDeviceProperties device_props {};
 		VkPhysicalDeviceFeatures supported_device_features {};
 		uint32_t graphics_queue_index {UINT32_MAX};
