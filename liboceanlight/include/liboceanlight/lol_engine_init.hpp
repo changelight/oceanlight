@@ -35,7 +35,7 @@ extern liboceanlight::engine_init::engine_init_data init_data;
 namespace liboceanlight::engine
 {
 
-	int init(window&, engine_data&);
+	int init(window&);
 
 	// void create_instance(engine_data&);
 	// void create_physical_device(engine_data&);
@@ -84,7 +84,7 @@ namespace liboceanlight::engine
 
 	/* COMMAND */
 	// void create_cmd_pool(engine_data&);
-	void create_cmd_buffer(engine_data&);
+	//void create_cmd_buffer(engine_data&);
 	// VkCommandBuffer begin_single_time_cmds(engine_data&);
 	//  void end_single_time_cmds(engine_data&, VkCommandBuffer&);
 

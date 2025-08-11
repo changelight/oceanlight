@@ -20,9 +20,8 @@ int main(int argc, char** argv)
 		}
 
 		liboceanlight::window window(args.width, args.height);
-		liboceanlight::engine::engine_data engine_data;
-		liboceanlight::engine::start(window, engine_data);
-		liboceanlight::engine::shutdown(window, engine_data);
+		liboceanlight::engine::start(window);
+		liboceanlight::engine::shutdown(window);
 	}
 
 	catch (const std::exception& e)

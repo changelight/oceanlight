@@ -5,9 +5,8 @@
 #include <stdexcept>
 #include <vector>
 #include <filesystem>
-#include <liboceanlight/lol_window.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
@@ -16,13 +15,12 @@
 #include <liboceanlight/lol_pipeline.hpp>
 #include <liboceanlight/lol_instance.hpp>
 #include <liboceanlight/lol_resource.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
 
 namespace fs = std::filesystem;
 liboceanlight::engine_init::engine_init_data init_data;
-using namespace liboceanlight::engine;
 
-int liboceanlight::engine::init(liboceanlight::window& window,
-								engine_data& eng_data)
+int liboceanlight::engine::init(liboceanlight::window& window)
 {
 	instance::create_instance();
 	device::create_physical_device(inst_data.vulkan_instance);
@@ -83,7 +81,10 @@ int liboceanlight::engine::init(liboceanlight::window& window,
 
 	resource::descriptor_pool(pool_sizes.data(), pool_sizes.size(), eng_data);
 	resource::descriptor_set(eng_data);
-	create_cmd_buffer(eng_data);
+	resource::command_buffer(dev_data.device,
+							 init_data.command_pool,
+							 eng_data.max_frames_in_flight,
+							 eng_data.command_buffers.data());
 	create_sync_objects(eng_data);
 
 	return 1;
@@ -289,7 +290,7 @@ void liboceanlight::engine_init::transition_img_layout(
 	engine_init::end_single_time_cmds(cmd_buffer);
 }
 
-void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
+/* void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
 {
 	VkCommandBufferAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -304,7 +305,7 @@ void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
 	{
 		throw std::runtime_error("Failed to allocate command buffer");
 	}
-}
+} */
 
 void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 {

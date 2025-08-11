@@ -427,3 +427,22 @@ void liboceanlight::resource::descriptor_set(engine::engine_data& eng_data)
 							   nullptr);
 	}
 }
+
+void liboceanlight::resource::command_buffer(VkDevice& dev,
+											 VkCommandPool& pool,
+											 uint32_t count,
+											 VkCommandBuffer* buffers)
+{
+	VkCommandBufferAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	alloc_info.commandPool = pool;
+	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	alloc_info.commandBufferCount = count;
+
+	VkResult rv = vkAllocateCommandBuffers(dev, &alloc_info, buffers);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate command buffer");
+	}
+}

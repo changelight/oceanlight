@@ -191,23 +191,21 @@ namespace liboceanlight::engine
 		std::vector<liboceanlight::models::lol_model> model_list;
 	};
 
-	void start(liboceanlight::window&, engine_data&);
-	void run(liboceanlight::window&, engine_data&);
-	void draw_frame(liboceanlight::window&, engine_data&, double);
-	void record_cmd_buffer(engine_data&, VkCommandBuffer&, uint32_t);
+	void start(liboceanlight::window&);
+	void run(liboceanlight::window&);
+	void draw_frame(liboceanlight::window&, double);
+	void record_cmd_buffer(VkCommandBuffer&, uint32_t);
 	void recreate_swapchain(liboceanlight::window&, engine_data&);
 	void upload_buffer(const void*,
 					   VkDeviceSize,
 					   VkBufferUsageFlagBits,
 					   VkBuffer&,
 					   VkDeviceMemory&);
-	void update_uniform_buffer(engine_data&,
-							   liboceanlight::window&,
-							   uint32_t,
-							   double);
+	void update_uniform_buffer(liboceanlight::window&, uint32_t, double);
 	void update_camera(liboceanlight::window&, float);
 	// void texture_from_file(VkDevice, const char*, texture::lol_texture&);
 } /* namespace liboceanlight::engine */
+extern liboceanlight::engine::engine_data eng_data;
 
 namespace std
 {

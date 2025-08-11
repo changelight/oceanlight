@@ -7,8 +7,8 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
@@ -18,20 +18,18 @@
 #include <liboceanlight/lol_pipeline.hpp>
 #include <liboceanlight/lol_resource.hpp>
 
+liboceanlight::engine::engine_data eng_data;
 liboceanlight::texture::lol_texture global_texture;
-using namespace liboceanlight::engine;
 double scroll_offset {0.0f}, cursor_posx {0.0f}, cursor_posy {0.0f};
-lol_camera camera;
+liboceanlight::engine::lol_camera camera;
 
-void liboceanlight::engine::start(liboceanlight::window& window,
-								  engine_data& eng_data)
+void liboceanlight::engine::start(liboceanlight::window& window)
 {
-	init(window, eng_data);
-	run(window, eng_data);
+	init(window);
+	run(window);
 }
 
-void liboceanlight::engine::run(liboceanlight::window& window,
-								engine_data& eng_data)
+void liboceanlight::engine::run(liboceanlight::window& window)
 {
 	auto current_time {std::chrono::high_resolution_clock::now()};
 	while (!window.should_close())
@@ -42,7 +40,7 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 				.count()};
 		current_time = new_time;
 		glfwPollEvents();
-		draw_frame(window, eng_data, dt);
+		draw_frame(window, dt);
 		current_time += (new_time - current_time);
 	}
 
@@ -50,7 +48,6 @@ void liboceanlight::engine::run(liboceanlight::window& window,
 }
 
 void liboceanlight::engine::draw_frame(liboceanlight::window& window,
-									   engine_data& eng_data,
 									   double dt)
 {
 	vkWaitForFences(dev_data.device,
@@ -84,11 +81,10 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 
 	// vkResetCommandPool(dev_data.device, init_data.command_pool, 0);
 	vkResetCommandBuffer(eng_data.command_buffers[eng_data.current_frame], 0);
-	record_cmd_buffer(eng_data,
-					  eng_data.command_buffers[eng_data.current_frame],
+	record_cmd_buffer(eng_data.command_buffers[eng_data.current_frame],
 					  image_index);
 
-	update_uniform_buffer(eng_data, window, eng_data.current_frame, dt);
+	update_uniform_buffer(window, eng_data.current_frame, dt);
 
 	VkSubmitInfo submit_info {};
 	std::array signal {eng_data.signal_sems[eng_data.current_frame]};
@@ -145,8 +141,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 							 eng_data.max_frames_in_flight;
 }
 
-void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
-											  VkCommandBuffer& cmd_buffer,
+void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
 											  uint32_t image_index)
 {
 	VkCommandBufferBeginInfo begin_info {};
@@ -236,7 +231,6 @@ void liboceanlight::engine::record_cmd_buffer(engine_data& eng_data,
 }
 
 void liboceanlight::engine::update_uniform_buffer(
-	engine_data& eng_data,
 	liboceanlight::window& window,
 	uint32_t current_image,
 	double dt)

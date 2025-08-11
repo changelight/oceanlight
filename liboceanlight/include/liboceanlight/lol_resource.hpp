@@ -32,7 +32,8 @@ namespace liboceanlight::resource
 	void descriptor_pool(VkDescriptorPoolSize*,
 						 uint32_t,
 						 engine::engine_data&);
-	void descriptor_set(engine::engine_data& eng_data);
+	void descriptor_set(engine::engine_data&);
+	void command_buffer(VkDevice&, VkCommandPool&, uint32_t, VkCommandBuffer*);
 } /* namespace liboceanlight::resource */
 extern liboceanlight::resource::resource_data res_data;
 #endif /* LIBOCEANLIGHT_RESOURCE_HPP_INCLUDED */
