@@ -1,7 +1,6 @@
 #include <array>
 #include <config.h>
 #include <gsl/gsl>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 #include <filesystem>
@@ -20,7 +19,7 @@
 namespace fs = std::filesystem;
 liboceanlight::engine_init::engine_init_data init_data;
 
-int liboceanlight::engine::init(liboceanlight::window& window)
+int liboceanlight::engine_init::init(liboceanlight::window& window)
 {
 	instance::create_instance();
 	device::create_physical_device(inst_data.vulkan_instance);
@@ -65,10 +64,6 @@ int liboceanlight::engine::init(liboceanlight::window& window)
 								 &eng_data.uniform_buffers_mapped[i]);
 	}
 
-	/*resource::uniform_buffer(eng_data.model_list[0].uniform,
-							 eng_data.model_list[0].uniform_mem,
-							 &eng_data.model_list[0].uniform_mapped);*/
-
 	/* Describes how many descriptors (not sets) of each type will be in the
 	 * descriptor pool */
 	std::array<VkDescriptorPoolSize, 2> pool_sizes;
@@ -85,7 +80,11 @@ int liboceanlight::engine::init(liboceanlight::window& window)
 							 init_data.command_pool,
 							 eng_data.max_frames_in_flight,
 							 eng_data.command_buffers.data());
-	create_sync_objects(eng_data);
+	engine_init::create_sync_objects(dev_data.device,
+									 eng_data.max_frames_in_flight,
+									 eng_data.wait_sems.data(),
+									 eng_data.signal_sems.data(),
+									 eng_data.in_flight_fences.data());
 
 	return 1;
 }
@@ -290,24 +289,11 @@ void liboceanlight::engine_init::transition_img_layout(
 	engine_init::end_single_time_cmds(cmd_buffer);
 }
 
-/* void liboceanlight::engine::create_cmd_buffer(engine_data& eng_data)
-{
-	VkCommandBufferAllocateInfo alloc_info {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	alloc_info.commandPool = init_data.command_pool;
-	alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	alloc_info.commandBufferCount = (uint32_t)eng_data.max_frames_in_flight;
-
-	VkResult rv = vkAllocateCommandBuffers(dev_data.device,
-										   &alloc_info,
-										   eng_data.command_buffers.data());
-	if (rv != VK_SUCCESS)
-	{
-		throw std::runtime_error("Failed to allocate command buffer");
-	}
-} */
-
-void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
+void liboceanlight::engine_init::create_sync_objects(VkDevice dev,
+													 const int frames,
+													 VkSemaphore* signals,
+													 VkSemaphore* waits,
+													 VkFence* fences)
 {
 	VkSemaphoreCreateInfo sem_info {};
 	sem_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -317,32 +303,23 @@ void liboceanlight::engine::create_sync_objects(engine_data& eng_data)
 	fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 	VkResult rv {};
-	for (int i {0}; i < eng_data.max_frames_in_flight; ++i)
+	for (int i {0}; i < frames; ++i)
 	{
-		rv = vkCreateSemaphore(dev_data.device,
-							   &sem_info,
-							   nullptr,
-							   &gsl::at(eng_data.signal_sems, i));
+		rv = vkCreateSemaphore(dev, &sem_info, nullptr, &signals[i]);
 
 		if (rv != VK_SUCCESS)
 		{
 			throw std::runtime_error("Failed to create signal semaphore");
 		}
 
-		rv = vkCreateSemaphore(dev_data.device,
-							   &sem_info,
-							   nullptr,
-							   &gsl::at(eng_data.wait_sems, i));
+		rv = vkCreateSemaphore(dev, &sem_info, nullptr, &waits[i]);
 
 		if (rv != VK_SUCCESS)
 		{
 			throw std::runtime_error("Failed to create wait semaphore");
 		}
 
-		rv = vkCreateFence(dev_data.device,
-						   &fence_info,
-						   nullptr,
-						   &gsl::at(eng_data.in_flight_fences, i));
+		rv = vkCreateFence(dev, &fence_info, nullptr, &fences[i]);
 
 		if (rv != VK_SUCCESS)
 		{

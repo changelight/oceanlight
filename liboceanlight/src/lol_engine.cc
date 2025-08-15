@@ -8,7 +8,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <liboceanlight/lol_engine.hpp>
-#include <liboceanlight/lol_debug_messenger.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
 #include <liboceanlight/lol_engine_shutdown.hpp>
 #include <liboceanlight/lol_utility.hpp>
@@ -25,7 +24,7 @@ liboceanlight::engine::lol_camera camera;
 
 void liboceanlight::engine::start(liboceanlight::window& window)
 {
-	init(window);
+	liboceanlight::engine_init::init(window);
 	run(window);
 }
 
