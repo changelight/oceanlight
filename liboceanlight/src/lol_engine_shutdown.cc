@@ -117,12 +117,13 @@ void liboceanlight::engine::cleanup_swapchain()
 
 void liboceanlight::engine::cleanup_images()
 {
-	vkDestroySampler(dev_data.device, global_texture.texture_sampler, nullptr);
-	vkDestroyImageView(dev_data.device,
-					   global_texture.texture_img_view,
-					   nullptr);
-	vkDestroyImage(dev_data.device, global_texture.texture_img, nullptr);
-	vkFreeMemory(dev_data.device, global_texture.texture_img_mem, nullptr);
+	for (auto model : eng_data.model_list)
+	{
+		vkDestroySampler(dev_data.device, model.texture.sampler, nullptr);
+		vkDestroyImageView(dev_data.device, model.texture.img_view, nullptr);
+		vkDestroyImage(dev_data.device, model.texture.img, nullptr);
+		vkFreeMemory(dev_data.device, model.texture.img_mem, nullptr);
+	}
 }
 
 void liboceanlight::engine::cleanup_descriptor_pool(
@@ -145,7 +146,7 @@ void liboceanlight::engine::cleanup_uniform_buffers()
 {
 	if (!eng_data.uniform_buffers.empty())
 	{
-		for (size_t i {0}; i < eng_data.max_frames_in_flight; ++i)
+		for (size_t i {0}; i < engine::max_frames_in_flight; ++i)
 		{
 			vkDestroyBuffer(
 				dev_data.device,
@@ -159,20 +160,19 @@ void liboceanlight::engine::cleanup_uniform_buffers()
 		}
 	}
 
-	for (auto i {0}; i < eng_data.model_list.size(); ++i)
+	for (auto& model : eng_data.model_list)
 	{
-		if (eng_data.model_list[i].uniform_mapped)
+		for (auto i {0}; i < engine::max_frames_in_flight; ++i)
 		{
-			vkFreeMemory(dev_data.device,
-						 eng_data.model_list[i].uniform_mem,
-						 nullptr);
-		}
+			if (model.uniforms_mapped[i])
+			{
+				vkFreeMemory(dev_data.device, model.uniforms_mem[i], nullptr);
+			}
 
-		if (eng_data.model_list[i].uniform)
-		{
-			vkDestroyBuffer(dev_data.device,
-							eng_data.model_list[i].uniform,
-							nullptr);
+			if (model.uniforms[i])
+			{
+				vkDestroyBuffer(dev_data.device, model.uniforms[i], nullptr);
+			}
 		}
 	}
 }

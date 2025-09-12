@@ -1,5 +1,7 @@
 #ifndef LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
 #define LIBOCEANLIGHT_ENGINE_HPP_INCLUDED
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 #include <array>
 #include <vulkan/vulkan_core.h>
@@ -12,6 +14,7 @@
 extern double scroll_offset, cursor_posx, cursor_posy;
 namespace liboceanlight::engine
 {
+	static constexpr int max_frames_in_flight {2};
 	using vertex = struct lol_vertex_struct
 	{
 		bool operator==(const lol_vertex_struct& other) const
@@ -59,6 +62,18 @@ namespace liboceanlight::engine
 	};
 } /* namespace liboceanlight::engine */
 
+namespace liboceanlight::texture
+{
+	using lol_texture = struct lol_texture_struct
+	{
+		VkImage img {nullptr};
+		VkDeviceMemory img_mem {nullptr};
+		VkImageView img_view {nullptr};
+		VkSampler sampler {nullptr};
+	};
+} /* namespace liboceanlight::texture */
+extern liboceanlight::texture::lol_texture global_texture;
+
 namespace liboceanlight::models
 {
 	using lol_model = struct lol_model_struct
@@ -66,25 +81,24 @@ namespace liboceanlight::models
 		std::string path;
 		std::vector<liboceanlight::engine::vertex> vertices;
 		std::vector<uint32_t> indices;
-		VkBuffer vertex_buffer {nullptr}, index_buffer {nullptr},
-			uniform {nullptr};
-		VkDeviceMemory vertex_buffer_mem {nullptr}, index_buffer_mem {nullptr},
-			uniform_mem {nullptr};
-		void* uniform_mapped {nullptr};
+		VkBuffer vertex_buffer {nullptr}, index_buffer {nullptr};
+		VkDeviceMemory vertex_buffer_mem {nullptr}, index_buffer_mem {nullptr};
+
+		/*maybe do this:
+		std::array<liboceanlight::uniform::lol_uniform> uniforms;*/
+
+		VkDescriptorSet descriptor_set {nullptr};
+		std::array<VkBuffer, engine::max_frames_in_flight> uniforms {nullptr};
+		std::array<VkDeviceMemory, engine::max_frames_in_flight> uniforms_mem {
+			nullptr};
+		std::array<void*, engine::max_frames_in_flight> uniforms_mapped {
+			nullptr};
+		uint32_t uniform_binding {0};
+
+		liboceanlight::texture::lol_texture texture;
+		uint32_t texture_binding {1};
 	};
 }; /* namespace liboceanlight::models */
-
-namespace liboceanlight::texture
-{
-	using lol_texture = struct lol_texture_struct
-	{
-		VkImage texture_img {nullptr};
-		VkDeviceMemory texture_img_mem {nullptr};
-		VkImageView texture_img_view {nullptr};
-		VkSampler texture_sampler {nullptr};
-	};
-} /* namespace liboceanlight::texture */
-extern liboceanlight::texture::lol_texture global_texture;
 
 namespace liboceanlight::engine
 {
@@ -144,7 +158,6 @@ namespace liboceanlight::engine
 		// VkPipeline graphics_pipeline {nullptr};
 
 		/* COMMAND */
-		static constexpr int max_frames_in_flight {2};
 		// VkCommandPool command_pool {nullptr};
 		std::array<VkCommandBuffer, max_frames_in_flight> command_buffers;
 
@@ -201,7 +214,16 @@ namespace liboceanlight::engine
 					   VkBufferUsageFlagBits,
 					   VkBuffer&,
 					   VkDeviceMemory&);
-	void update_uniform_buffer(liboceanlight::window&, uint32_t, double);
+	void update_uniform_buffer(liboceanlight::window&,
+							   uint32_t,
+							   double,
+							   liboceanlight::models::lol_model&);
+	void update_descriptor_sets(VkBuffer*,
+								VkImageView&,
+								VkSampler&,
+								VkDescriptorSet&,
+								uint32_t,
+								uint32_t);
 	void update_camera(liboceanlight::window&, float);
 	// void texture_from_file(VkDevice, const char*, texture::lol_texture&);
 } /* namespace liboceanlight::engine */

@@ -1,8 +1,10 @@
 #include <GLFW/glfw3.h>
 #include <chrono>
 #include <config.h>
+#include <cstdint>
 #include <cstring>
 #include <vector>
+#include <iostream>
 #include <vulkan/vulkan.h>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -83,7 +85,10 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	record_cmd_buffer(eng_data.command_buffers[eng_data.current_frame],
 					  image_index);
 
-	update_uniform_buffer(window, eng_data.current_frame, dt);
+	for (auto& model : eng_data.model_list)
+	{
+		update_uniform_buffer(window, eng_data.current_frame, dt, model);
+	}
 
 	VkSubmitInfo submit_info {};
 	std::array signal {eng_data.signal_sems[eng_data.current_frame]};
@@ -137,7 +142,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	}
 
 	eng_data.current_frame = (eng_data.current_frame + 1) %
-							 eng_data.max_frames_in_flight;
+							 engine::max_frames_in_flight;
 }
 
 void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
@@ -173,15 +178,6 @@ void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
 					  VK_PIPELINE_BIND_POINT_GRAPHICS,
 					  pipe_data.pipeline);
 
-	vkCmdBindDescriptorSets(cmd_buffer,
-							VK_PIPELINE_BIND_POINT_GRAPHICS,
-							pipe_data.pipeline_layout,
-							0,
-							1,
-							&eng_data.descriptor_sets[eng_data.current_frame],
-							0,
-							nullptr);
-
 	VkViewport viewport {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -198,6 +194,15 @@ void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
 
 	for (auto& model : eng_data.model_list)
 	{
+		vkCmdBindDescriptorSets(cmd_buffer,
+								VK_PIPELINE_BIND_POINT_GRAPHICS,
+								pipe_data.pipeline_layout,
+								0,
+								1,
+								&model.descriptor_set,
+								0,
+								nullptr);
+
 		std::array vertex_buffers {model.vertex_buffer};
 		VkDeviceSize offsets {0};
 		vkCmdBindVertexBuffers(cmd_buffer,
@@ -231,8 +236,9 @@ void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
 
 void liboceanlight::engine::update_uniform_buffer(
 	liboceanlight::window& window,
-	uint32_t current_image,
-	double dt)
+	uint32_t current_frame,
+	double dt,
+	liboceanlight::models::lol_model& current_model)
 {
 	static auto start_time {std::chrono::high_resolution_clock::now()};
 	auto current_time {std::chrono::high_resolution_clock::now()};
@@ -286,7 +292,57 @@ void liboceanlight::engine::update_uniform_buffer(
 		zfar);
 	ubo.proj[1][1] *= -1;
 
-	memcpy(eng_data.uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+	memcpy(current_model.uniforms_mapped[current_frame], &ubo, sizeof(ubo));
+}
+
+void liboceanlight::engine::update_descriptor_sets(
+	VkBuffer* buffs,
+	VkImageView& img_view,
+	VkSampler& tex_sampler,
+	VkDescriptorSet& descriptor_set,
+	uint32_t uniform_binding,
+	uint32_t texture_binding)
+{
+	std::array<VkWriteDescriptorSet, 2> descriptor_writes {};
+	constexpr unsigned int buffer_count {engine::max_frames_in_flight};
+	std::array<VkDescriptorBufferInfo, buffer_count> buff_info {};
+
+	buff_info[0].buffer = buffs[0];
+	buff_info[0].offset = 0;
+	buff_info[0].range = sizeof(engine::uniform_buffer_object);
+	buff_info[1].buffer = buffs[1];
+	buff_info[1].offset = 0;
+	buff_info[1].range = sizeof(engine::uniform_buffer_object);
+
+	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[0].dstSet = descriptor_set;
+	descriptor_writes[0].dstBinding = uniform_binding;
+	descriptor_writes[0].dstArrayElement = 0;
+	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptor_writes[0].descriptorCount = 2;
+	descriptor_writes[0].pBufferInfo = buff_info.data();
+
+	VkDescriptorImageInfo image_info {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = img_view;
+	image_info.sampler = tex_sampler;
+
+	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[1].dstSet = descriptor_set;
+	descriptor_writes[1].dstBinding = texture_binding;
+	descriptor_writes[1].dstArrayElement = 0;
+	descriptor_writes[1].descriptorType =
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptor_writes[1].descriptorCount = 1;
+	descriptor_writes[1].pImageInfo = &image_info;
+
+	vkUpdateDescriptorSets(dev_data.device,
+						   static_cast<uint32_t>(descriptor_writes.size()),
+						   descriptor_writes.data(),
+						   0,
+						   nullptr);
+
+	std::cout << "UPDATED DESCRIPTOR SET: " << descriptor_set << "\n";
 }
 
 void liboceanlight::engine::update_camera(liboceanlight::window& window,

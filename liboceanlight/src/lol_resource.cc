@@ -1,6 +1,8 @@
 #include <cstdint>
+#include <string_view>
 #include <vector>
 #include <iostream>
+#include <filesystem>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 #include <stb_image.h>
@@ -12,6 +14,8 @@
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_pipeline.hpp>
 #include <liboceanlight/lol_utility.hpp>
+
+namespace fs = std::filesystem;
 
 void liboceanlight::resource::buffer(VkDeviceSize size,
 									 VkBufferUsageFlags usage,
@@ -150,13 +154,17 @@ void liboceanlight::resource::image(uint32_t width,
 }
 
 void liboceanlight::resource::texture_from_file(
-	const char* path,
+	const std::string_view& path,
 	liboceanlight::texture::lol_texture& texture)
 {
 	int width {}, height {}, channels {}, bytes_per_component {STBI_rgb_alpha};
 
 	stbi_uc* pixels {nullptr};
-	pixels = stbi_load(path, &width, &height, &channels, bytes_per_component);
+	pixels = stbi_load(path.data(),
+					   &width,
+					   &height,
+					   &channels,
+					   bytes_per_component);
 
 	if (!pixels)
 	{
@@ -188,36 +196,27 @@ void liboceanlight::resource::texture_from_file(
 					VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 						VK_IMAGE_USAGE_SAMPLED_BIT,
 					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-					texture.texture_img,
-					texture.texture_img_mem);
+					texture.img,
+					texture.img_mem);
 
-	engine_init::transition_img_layout(texture.texture_img,
+	engine_init::transition_img_layout(texture.img,
 									   VK_FORMAT_R8G8B8A8_SRGB,
 									   VK_IMAGE_LAYOUT_UNDEFINED,
 									   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	utility::copy_buffer_to_img(staging_buff,
-								texture.texture_img,
+								texture.img,
 								static_cast<uint32_t>(width),
 								static_cast<uint32_t>(height));
 
 	engine_init::transition_img_layout(
-		texture.texture_img,
+		texture.img,
 		VK_FORMAT_R8G8B8A8_SRGB,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	vkDestroyBuffer(dev_data.device, staging_buff, nullptr);
 	vkFreeMemory(dev_data.device, staging_buff_mem, nullptr);
-}
-
-void liboceanlight::resource::texture_img_view(VkImage& texture_image)
-{
-	global_texture.texture_img_view = swapchain::create_image_view(
-		dev_data.device,
-		texture_image,
-		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void liboceanlight::resource::texture_sampler(float max_anisotropy,
@@ -354,7 +353,7 @@ void liboceanlight::resource::descriptor_pool(VkDescriptorPoolSize* pool_sizes,
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = size_count;
 	pool_info.pPoolSizes = pool_sizes;
-	pool_info.maxSets = static_cast<uint32_t>(eng_data.max_frames_in_flight);
+	pool_info.maxSets = static_cast<uint32_t>(eng_data.model_list.size());
 
 	VkResult rv = vkCreateDescriptorPool(dev_data.device,
 										 &pool_info,
@@ -367,7 +366,27 @@ void liboceanlight::resource::descriptor_pool(VkDescriptorPoolSize* pool_sizes,
 	}
 }
 
-void liboceanlight::resource::descriptor_set(engine::engine_data& eng_data)
+void liboceanlight::resource::descriptor_set(VkDevice& dev,
+											 VkDescriptorPool& pool,
+											 VkDescriptorSetLayout* layouts,
+											 unsigned int count,
+											 VkDescriptorSet& dest_set)
+{
+	VkDescriptorSetAllocateInfo alloc_info {};
+	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	alloc_info.descriptorPool = pool;
+	alloc_info.descriptorSetCount = count;
+	alloc_info.pSetLayouts = layouts;
+
+	VkResult rv = vkAllocateDescriptorSets(dev, &alloc_info, &dest_set);
+
+	if (rv != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to allocate descriptor sets");
+	}
+}
+
+/*void liboceanlight::resource::descriptor_set(engine::engine_data& eng_data)
 {
 	std::vector<VkDescriptorSetLayout> layouts(
 		eng_data.max_frames_in_flight,
@@ -426,7 +445,7 @@ void liboceanlight::resource::descriptor_set(engine::engine_data& eng_data)
 							   0,
 							   nullptr);
 	}
-}
+}*/
 
 void liboceanlight::resource::command_buffer(VkDevice& dev,
 											 VkCommandPool& pool,
@@ -444,5 +463,32 @@ void liboceanlight::resource::command_buffer(VkDevice& dev,
 	if (rv != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to allocate command buffer");
+	}
+}
+
+void liboceanlight::resource::load_models(
+	std::vector<liboceanlight::models::lol_model>& model_list)
+{
+	auto current_dir {fs::recursive_directory_iterator(MODEL_PATH)};
+	/* Load model files from a directory */
+	for (const auto& file : current_dir)
+	{
+		if (!file.is_directory())
+		{
+			static int model_index {0};
+			std::string extension {file.path().extension().string()};
+			if (extension == ".obj")
+			{
+				eng_data.model_list.emplace_back(file.path().string());
+				resource::model_from_obj(
+					eng_data.model_list[model_index].path.c_str(),
+					eng_data.model_list[model_index]);
+				++model_index;
+			}
+		}
+	}
+	if (model_list.size() == 0)
+	{
+		throw std::runtime_error("No meshes found");
 	}
 }

@@ -3,7 +3,7 @@
 #include <gsl/gsl>
 #include <stdexcept>
 #include <vector>
-#include <filesystem>
+#include <iostream>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_window.hpp>
 #include <liboceanlight/lol_engine_init.hpp>
@@ -16,7 +16,6 @@
 #include <liboceanlight/lol_resource.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
 
-namespace fs = std::filesystem;
 liboceanlight::engine_init::engine_init_data init_data;
 
 int liboceanlight::engine_init::init(liboceanlight::window& window)
@@ -38,50 +37,77 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 									 pipe_data.render_pass,
 									 swap_data);
 
-	resource::texture_from_file(TEXTURE_PATH "viking_room.png",
-								global_texture);
-	resource::texture_img_view(global_texture.texture_img);
+	resource::load_models(eng_data.model_list);
+	//resource::load_textures(eng_data.model_list);
+
+	resource::texture_from_file(TEXTURE_PATH "cube.png",
+								eng_data.model_list[0].texture);
+	eng_data.model_list[0].texture.img_view = swapchain::create_image_view(
+		dev_data.device,
+		eng_data.model_list[0].texture.img,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_ASPECT_COLOR_BIT);
 	resource::texture_sampler(
 		dev_data.device_props.limits.maxSamplerAnisotropy,
-		global_texture.texture_sampler);
+		eng_data.model_list[0].texture.sampler);
 
-	/* Load model files from a directory */
-	for (const auto& file : fs::directory_iterator(MODEL_PATH))
-	{
-		static int n {0};
-		eng_data.model_list.emplace_back(MODEL_PATH +
-										 file.path().filename().string());
-		resource::model_from_obj(eng_data.model_list[n].path.c_str(),
-								 eng_data.model_list[n]);
-		++n;
-	}
-
-	/* Create 1 uniform buffer per frame in flight */
-	for (auto i {0}; i < eng_data.max_frames_in_flight; ++i)
-	{
-		resource::uniform_buffer(eng_data.uniform_buffers[i],
-								 eng_data.uniform_buffers_mem[i],
-								 &eng_data.uniform_buffers_mapped[i]);
-	}
+	resource::texture_from_file(TEXTURE_PATH "viking_room.png",
+								eng_data.model_list[1].texture);
+	eng_data.model_list[1].texture.img_view = swapchain::create_image_view(
+		dev_data.device,
+		eng_data.model_list[1].texture.img,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_ASPECT_COLOR_BIT);
+	resource::texture_sampler(
+		dev_data.device_props.limits.maxSamplerAnisotropy,
+		eng_data.model_list[1].texture.sampler);
 
 	/* Describes how many descriptors (not sets) of each type will be in the
 	 * descriptor pool */
 	std::array<VkDescriptorPoolSize, 2> pool_sizes;
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	pool_sizes[0].descriptorCount = static_cast<uint32_t>(
-		eng_data.max_frames_in_flight);
+		eng_data.model_list.size() * engine::max_frames_in_flight);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[1].descriptorCount = static_cast<uint32_t>(
-		eng_data.max_frames_in_flight);
+		eng_data.model_list.size());
 
 	resource::descriptor_pool(pool_sizes.data(), pool_sizes.size(), eng_data);
-	resource::descriptor_set(eng_data);
+	std::vector<VkDescriptorSetLayout> layouts(
+		eng_data.model_list.size(),
+		pipe_data.descriptor_set_layout);
+
+	/* Descriptor set for each model */
+	for (auto& model : eng_data.model_list)
+	{
+		/* Uniform for each frame in flight */
+		for (auto i {0}; i < engine::max_frames_in_flight; ++i)
+		{
+			resource::uniform_buffer(model.uniforms[i],
+									 model.uniforms_mem[i],
+									 &model.uniforms_mapped[i]);
+		}
+
+		resource::descriptor_set(dev_data.device,
+								 eng_data.descriptor_pool,
+								 layouts.data(),
+								 1,
+								 model.descriptor_set);
+
+		engine::update_descriptor_sets(model.uniforms.data(),
+									   model.texture.img_view,
+									   model.texture.sampler,
+									   model.descriptor_set,
+									   model.uniform_binding,
+									   model.texture_binding);
+	}
+
 	resource::command_buffer(dev_data.device,
 							 init_data.command_pool,
-							 eng_data.max_frames_in_flight,
+							 engine::max_frames_in_flight,
 							 eng_data.command_buffers.data());
 	engine_init::create_sync_objects(dev_data.device,
-									 eng_data.max_frames_in_flight,
+									 engine::max_frames_in_flight,
 									 eng_data.wait_sems.data(),
 									 eng_data.signal_sems.data(),
 									 eng_data.in_flight_fences.data());
