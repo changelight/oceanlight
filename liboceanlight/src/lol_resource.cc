@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdint>
 #include <string_view>
 #include <vector>
@@ -353,7 +354,7 @@ void liboceanlight::resource::descriptor_pool(VkDescriptorPoolSize* pool_sizes,
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = size_count;
 	pool_info.pPoolSizes = pool_sizes;
-	pool_info.maxSets = static_cast<uint32_t>(eng_data.model_list.size());
+	pool_info.maxSets = static_cast<uint32_t>(eng_data.model_list.size() * 3);
 
 	VkResult rv = vkCreateDescriptorPool(dev_data.device,
 										 &pool_info,
@@ -366,11 +367,11 @@ void liboceanlight::resource::descriptor_pool(VkDescriptorPoolSize* pool_sizes,
 	}
 }
 
-void liboceanlight::resource::descriptor_set(VkDevice& dev,
+void liboceanlight::resource::descriptor_sets(VkDevice& dev,
 											 VkDescriptorPool& pool,
 											 VkDescriptorSetLayout* layouts,
 											 unsigned int count,
-											 VkDescriptorSet& dest_set)
+											 std::array<VkDescriptorSet, 2>& dest_sets)
 {
 	VkDescriptorSetAllocateInfo alloc_info {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -378,7 +379,7 @@ void liboceanlight::resource::descriptor_set(VkDevice& dev,
 	alloc_info.descriptorSetCount = count;
 	alloc_info.pSetLayouts = layouts;
 
-	VkResult rv = vkAllocateDescriptorSets(dev, &alloc_info, &dest_set);
+	VkResult rv = vkAllocateDescriptorSets(dev, &alloc_info, dest_sets.data());
 
 	if (rv != VK_SUCCESS)
 	{
@@ -491,4 +492,17 @@ void liboceanlight::resource::load_models(
 	{
 		throw std::runtime_error("No meshes found");
 	}
+}
+
+VkDescriptorSetLayoutBinding liboceanlight::resource::layout_binding(
+	uint32_t binding,
+	VkDescriptorType type,
+	uint32_t count,
+	VkShaderStageFlags stage)
+{
+	VkDescriptorSetLayoutBinding layout {.binding = binding,
+										 .descriptorType = type,
+										 .descriptorCount = count,
+										 .stageFlags = stage};
+	return layout;
 }

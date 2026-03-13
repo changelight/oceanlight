@@ -1,4 +1,5 @@
 #include <GLFW/glfw3.h>
+#include <array>
 #include <chrono>
 #include <config.h>
 #include <cstdint>
@@ -73,7 +74,7 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	}
 	else if (rv != VK_SUCCESS && rv != VK_SUBOPTIMAL_KHR)
 	{
-		throw std::runtime_error("Failed to acquire swap chain image");
+		throw std::runtime_error("Failed to acquire swapchain image");
 	}
 
 	vkResetFences(dev_data.device,
@@ -85,10 +86,10 @@ void liboceanlight::engine::draw_frame(liboceanlight::window& window,
 	record_cmd_buffer(eng_data.command_buffers[eng_data.current_frame],
 					  image_index);
 
-	for (auto& model : eng_data.model_list)
-	{
-		update_uniform_buffer(window, eng_data.current_frame, dt, model);
-	}
+	update_uniform_buffer(window,
+						  eng_data.current_frame,
+						  dt,
+						  eng_data.model_list);
 
 	VkSubmitInfo submit_info {};
 	std::array signal {eng_data.signal_sems[eng_data.current_frame]};
@@ -198,8 +199,8 @@ void liboceanlight::engine::record_cmd_buffer(VkCommandBuffer& cmd_buffer,
 								VK_PIPELINE_BIND_POINT_GRAPHICS,
 								pipe_data.pipeline_layout,
 								0,
-								1,
-								&model.descriptor_set,
+								model.descriptor_sets.size(),
+								model.descriptor_sets.data(),
 								0,
 								nullptr);
 
@@ -238,7 +239,7 @@ void liboceanlight::engine::update_uniform_buffer(
 	liboceanlight::window& window,
 	uint32_t current_frame,
 	double dt,
-	liboceanlight::models::lol_model& current_model)
+	std::vector<liboceanlight::models::lol_model>& model_list)
 {
 	static auto start_time {std::chrono::high_resolution_clock::now()};
 	auto current_time {std::chrono::high_resolution_clock::now()};
@@ -246,60 +247,72 @@ void liboceanlight::engine::update_uniform_buffer(
 					current_time - start_time)
 					.count()};
 
-	uniform_buffer_object ubo {};
-
-	static glm::vec3 scale {1.0f, 1.0f, 1.0f};
-	static float scale_quota {0.0f};
-	const float scale_step {0.0025f * static_cast<float>(dt)};
-
-	if (scroll_offset != 0.0f)
+	float pos = 0.0f;
+	for (auto& current_model : model_list)
 	{
-		scale_quota += static_cast<float>(scroll_offset / 8.0f);
-		scroll_offset = 0.0f;
+		uniform_buffer_object ubo {};
+
+		static glm::vec3 scale {1.0f, 1.0f, 1.0f};
+		static float scale_quota {0.0f};
+		const float scale_step {0.0025f * static_cast<float>(dt)};
+
+		if (scroll_offset != 0.0f)
+		{
+			scale_quota += static_cast<float>(scroll_offset / 8.0f);
+			scroll_offset = 0.0f;
+		}
+
+		if (scale_quota > 0.0f + scale_step)
+		{
+			scale += scale_step;
+			scale_quota -= scale_step;
+		}
+		else if (scale_quota < 0.0f - scale_step)
+		{
+			scale -= scale_step;
+			scale_quota += scale_step;
+		}
+
+		ubo.model = glm::translate(ubo.model, glm::vec3(pos, 0.0f, 0.0f));
+
+		ubo.model = glm::scale(ubo.model, scale);
+		const float angle {35.0f}, initial_angle {-90.0f + -45.0f};
+
+		/*ubo.model = glm::rotate(ubo.model,
+								(float)(glm::radians(initial_angle)),
+								glm::vec3(0.0f, 1.0f, 0.0f));
+
+		ubo.model = glm::rotate(ubo.model,
+								(float)(sin(time) * glm::radians(angle)),
+								glm::vec3(0.0f, 1.0f, 0.0f));*/
+
+		update_camera(window, static_cast<float>(dt));
+		ubo.view = glm::lookAt(camera.eye,
+							   camera.eye + camera.center,
+							   camera.up);
+
+		const float degrees {60.0f}, zfar {1000.0f}, znear {0.1f};
+		ubo.proj = glm::perspective(
+			glm::radians(degrees),
+			static_cast<float>(swap_data.swap_extent.width) /
+				static_cast<float>(swap_data.swap_extent.height),
+			znear,
+			zfar);
+		ubo.proj[1][1] *= -1;
+
+		memcpy(current_model.uniforms_mapped[current_frame],
+			   &ubo,
+			   sizeof(ubo));
+
+		pos += 4.0f;
 	}
-
-	if (scale_quota > 0.0f + scale_step)
-	{
-		scale += scale_step;
-		scale_quota -= scale_step;
-	}
-	else if (scale_quota < 0.0f - scale_step)
-	{
-		scale -= scale_step;
-		scale_quota += scale_step;
-	}
-
-	ubo.model = glm::scale(ubo.model, scale);
-	const float angle {35.0f}, initial_angle {-90.0f + -45.0f};
-
-	ubo.model = glm::rotate(ubo.model,
-							(float)(glm::radians(initial_angle)),
-							glm::vec3(0.0f, 1.0f, 0.0f));
-
-	ubo.model = glm::rotate(ubo.model,
-							(float)(sin(time) * glm::radians(angle)),
-							glm::vec3(0.0f, 1.0f, 0.0f));
-
-	update_camera(window, static_cast<float>(dt));
-	ubo.view = glm::lookAt(camera.eye, camera.eye + camera.center, camera.up);
-
-	const float degrees {60.0f}, zfar {1000.0f}, znear {0.1f};
-	ubo.proj = glm::perspective(
-		glm::radians(degrees),
-		static_cast<float>(swap_data.swap_extent.width) /
-			static_cast<float>(swap_data.swap_extent.height),
-		znear,
-		zfar);
-	ubo.proj[1][1] *= -1;
-
-	memcpy(current_model.uniforms_mapped[current_frame], &ubo, sizeof(ubo));
 }
 
 void liboceanlight::engine::update_descriptor_sets(
 	VkBuffer* buffs,
 	VkImageView& img_view,
 	VkSampler& tex_sampler,
-	VkDescriptorSet& descriptor_set,
+	std::array<VkDescriptorSet, 2>& descriptor_sets,
 	uint32_t uniform_binding,
 	uint32_t texture_binding)
 {
@@ -315,7 +328,7 @@ void liboceanlight::engine::update_descriptor_sets(
 	buff_info[1].range = sizeof(engine::uniform_buffer_object);
 
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[0].dstSet = descriptor_set;
+	descriptor_writes[0].dstSet = descriptor_sets[0];
 	descriptor_writes[0].dstBinding = uniform_binding;
 	descriptor_writes[0].dstArrayElement = 0;
 	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -328,7 +341,7 @@ void liboceanlight::engine::update_descriptor_sets(
 	image_info.sampler = tex_sampler;
 
 	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[1].dstSet = descriptor_set;
+	descriptor_writes[1].dstSet = descriptor_sets[1];
 	descriptor_writes[1].dstBinding = texture_binding;
 	descriptor_writes[1].dstArrayElement = 0;
 	descriptor_writes[1].descriptorType =
@@ -342,7 +355,7 @@ void liboceanlight::engine::update_descriptor_sets(
 						   0,
 						   nullptr);
 
-	std::cout << "UPDATED DESCRIPTOR SET: " << descriptor_set << "\n";
+	std::cout << "UPDATED DESCRIPTOR SETS \n";
 }
 
 void liboceanlight::engine::update_camera(liboceanlight::window& window,

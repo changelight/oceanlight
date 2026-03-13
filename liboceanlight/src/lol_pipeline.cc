@@ -7,6 +7,7 @@
 #include <liboceanlight/lol_utility.hpp>
 #include <liboceanlight/lol_resource.hpp>
 #include <liboceanlight/lol_engine.hpp>
+#include <vector>
 
 liboceanlight::pipeline::pipeline_data pipe_data;
 
@@ -79,33 +80,20 @@ void liboceanlight::pipeline::create_render_pass(liboceanlight::window& w,
 	}
 }
 
-void liboceanlight::pipeline::create_descriptor_set_layout(VkDevice device)
+void liboceanlight::pipeline::descriptor_set_layout(
+	VkDevice device,
+	std::vector<VkDescriptorSetLayoutBinding>& bindings,
+	VkDescriptorSetLayout& dst_layout)
 {
-	VkDescriptorSetLayoutBinding ubo_layout_binding {};
-	ubo_layout_binding.binding = 0;
-	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	ubo_layout_binding.descriptorCount = engine::max_frames_in_flight;
-	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	ubo_layout_binding.pImmutableSamplers = nullptr;
-
-	VkDescriptorSetLayoutBinding sl_binding {};
-	sl_binding.binding = 1;
-	sl_binding.descriptorCount = 1;
-	sl_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	sl_binding.pImmutableSamplers = nullptr;
-	sl_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	std::array bindings {ubo_layout_binding, sl_binding};
 	VkDescriptorSetLayoutCreateInfo layout_info {};
 	layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
 	layout_info.pBindings = bindings.data();
 
-	VkResult rv = vkCreateDescriptorSetLayout(
-		device,
-		&layout_info,
-		nullptr,
-		&pipe_data.descriptor_set_layout);
+	VkResult rv = vkCreateDescriptorSetLayout(device,
+											  &layout_info,
+											  nullptr,
+											  &dst_layout);
 
 	if (rv != VK_SUCCESS)
 	{
@@ -236,8 +224,9 @@ void liboceanlight::pipeline::create_pipeline(VkDevice device,
 
 	VkPipelineLayoutCreateInfo pipeline_layout_info {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_info.setLayoutCount = 1;
-	pipeline_layout_info.pSetLayouts = &pipe_data.descriptor_set_layout;
+	pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(
+		pipe_data.descriptor_set_layouts.size());
+	pipeline_layout_info.pSetLayouts = pipe_data.descriptor_set_layouts.data();
 	pipeline_layout_info.pushConstantRangeCount = 0;
 	pipeline_layout_info.pPushConstantRanges = nullptr;
 

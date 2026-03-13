@@ -55,29 +55,32 @@ target_compile_definitions(glm PUBLIC GLM_BUILD_DOCS=OFF)
 FetchContent_Declare(
     stb
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/stb
-    URL https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/stb
+    URL https://raw.githubusercontent.com/nothings/stb/refs/heads/master/stb_image.h
     DOWNLOAD_NO_EXTRACT TRUE)
 FetchContent_MakeAvailable(stb)
-add_library(stb INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/stb/src/stb_image.h)
-target_include_directories(stb INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/stb/src")
+add_library(stb INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/stb/stb_image.h)
+target_include_directories(stb INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/stb")
 
 FetchContent_Declare(
     tinyobjloader
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader
     URL https://raw.githubusercontent.com/tinyobjloader/tinyobjloader/release/tiny_obj_loader.h
     DOWNLOAD_NO_EXTRACT TRUE)
 FetchContent_MakeAvailable(tinyobjloader)
-add_library(tinyobjloader INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader/src/tiny_obj_loader.h)
-target_include_directories(tinyobjloader INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader/src")
+add_library(tinyobjloader INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader/tiny_obj_loader.h)
+target_include_directories(tinyobjloader INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinyobjloader")
 
 FetchContent_Declare(
     tinygltf
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf
     URL https://raw.githubusercontent.com/syoyo/tinygltf/release/tiny_gltf.h
     DOWNLOAD_NO_EXTRACT TRUE)
 FetchContent_MakeAvailable(tinygltf)
-add_library(tinygltf INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf/src/tiny_gltf.h)
-target_include_directories(tinygltf INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf/src")
+add_library(tinygltf INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf/tiny_gltf.h)
+target_include_directories(tinygltf INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/external/tinygltf")
 
 FetchContent_Declare(
     googletest

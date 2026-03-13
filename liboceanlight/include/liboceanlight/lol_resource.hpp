@@ -1,5 +1,7 @@
 #ifndef LIBOCEANLIGHT_RESOURCE_HPP_INCLUDED
 #define LIBOCEANLIGHT_RESOURCE_HPP_INCLUDED
+#include <array>
+#include <cstdint>
 #include <vector>
 #include <vulkan/vulkan_core.h>
 #include <liboceanlight/lol_window.hpp>
@@ -32,11 +34,15 @@ namespace liboceanlight::resource
 						 uint32_t,
 						 engine::engine_data&);
 	// void descriptor_set(engine::engine_data&);
-	void descriptor_set(VkDevice&,
-						VkDescriptorPool&,
-						VkDescriptorSetLayout*,
-						unsigned int,
-						VkDescriptorSet&);
+	VkDescriptorSetLayoutBinding layout_binding(uint32_t,
+												VkDescriptorType,
+												uint32_t,
+												VkShaderStageFlags);
+	void descriptor_sets(VkDevice&,
+						 VkDescriptorPool&,
+						 VkDescriptorSetLayout*,
+						 unsigned int,
+						 std::array<VkDescriptorSet, 2>&);
 	void command_buffer(VkDevice&, VkCommandPool&, uint32_t, VkCommandBuffer*);
 	void load_models(std::vector<liboceanlight::models::lol_model>&);
 

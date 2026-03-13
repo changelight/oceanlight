@@ -29,7 +29,38 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 	swapchain::create_swapchain(window, dev_data.device);
 	swapchain::create_image_views(window, dev_data.device);
 	pipeline::create_render_pass(window, dev_data.device);
-	pipeline::create_descriptor_set_layout(dev_data.device);
+
+	/* Each object/drawable will have two descriptor sets,
+	one for uniforms (double buffered) and one for the texture sampler */
+	std::vector<VkDescriptorSetLayoutBinding> layout_bindings,
+		layout_bindings_uniforms, layout_bindings_texture;
+
+	/* Uniform */
+	layout_bindings_uniforms.push_back(
+		{.binding = 0,
+		 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		 .descriptorCount = 2,
+		 .stageFlags = VK_SHADER_STAGE_VERTEX_BIT});
+
+	/* Texture sampler */
+	layout_bindings_texture.push_back(
+		{.binding = 1,
+		 .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		 .descriptorCount = 1,
+		 .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT});
+
+	/* Create new layouts with above bindings/descriptors */
+	VkDescriptorSetLayout layout_uniforms {}, layout_texture {};
+	pipeline::descriptor_set_layout(dev_data.device,
+									layout_bindings_uniforms,
+									layout_uniforms);
+	pipe_data.descriptor_set_layouts.push_back(layout_uniforms);
+
+	pipeline::descriptor_set_layout(dev_data.device,
+									layout_bindings_texture,
+									layout_texture);
+	pipe_data.descriptor_set_layouts.push_back(layout_texture);
+
 	pipeline::create_pipeline(dev_data.device, swap_data.swap_extent);
 	engine_init::create_cmd_pool();
 	engine_init::create_depth_image();
@@ -38,7 +69,7 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 									 swap_data);
 
 	resource::load_models(eng_data.model_list);
-	//resource::load_textures(eng_data.model_list);
+	// resource::load_textures(eng_data.model_list);
 
 	resource::texture_from_file(TEXTURE_PATH "cube.png",
 								eng_data.model_list[0].texture);
@@ -73,9 +104,6 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 		eng_data.model_list.size());
 
 	resource::descriptor_pool(pool_sizes.data(), pool_sizes.size(), eng_data);
-	std::vector<VkDescriptorSetLayout> layouts(
-		eng_data.model_list.size(),
-		pipe_data.descriptor_set_layout);
 
 	/* Descriptor set for each model */
 	for (auto& model : eng_data.model_list)
@@ -88,16 +116,16 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 									 &model.uniforms_mapped[i]);
 		}
 
-		resource::descriptor_set(dev_data.device,
-								 eng_data.descriptor_pool,
-								 layouts.data(),
-								 1,
-								 model.descriptor_set);
+		resource::descriptor_sets(dev_data.device,
+								  eng_data.descriptor_pool,
+								  pipe_data.descriptor_set_layouts.data(),
+								  model.descriptor_sets.size(),
+								  model.descriptor_sets);
 
 		engine::update_descriptor_sets(model.uniforms.data(),
 									   model.texture.img_view,
 									   model.texture.sampler,
-									   model.descriptor_set,
+									   model.descriptor_sets,
 									   model.uniform_binding,
 									   model.texture_binding);
 	}
@@ -106,6 +134,7 @@ int liboceanlight::engine_init::init(liboceanlight::window& window)
 							 init_data.command_pool,
 							 engine::max_frames_in_flight,
 							 eng_data.command_buffers.data());
+
 	engine_init::create_sync_objects(dev_data.device,
 									 engine::max_frames_in_flight,
 									 eng_data.wait_sems.data(),

@@ -1,4 +1,5 @@
 #include <gsl/gsl>
+#include <vector>
 #include <vulkan/vulkan_core.h>
 #include <liboceanlight/lol_engine.hpp>
 #include <liboceanlight/lol_debug_messenger.hpp>
@@ -19,7 +20,7 @@ void liboceanlight::engine::shutdown(liboceanlight::window& w)
 	cleanup_images();
 	cleanup_descriptor_pool(dev_data.device,
 							eng_data.descriptor_pool,
-							pipe_data.descriptor_set_layout);
+							pipe_data.descriptor_set_layouts);
 	models::cleanup_models(eng_data.model_list);
 	cleanup_uniform_buffers();
 	cleanup_surface(w.surface);
@@ -117,7 +118,7 @@ void liboceanlight::engine::cleanup_swapchain()
 
 void liboceanlight::engine::cleanup_images()
 {
-	for (auto model : eng_data.model_list)
+	for (const auto& model : eng_data.model_list)
 	{
 		vkDestroySampler(dev_data.device, model.texture.sampler, nullptr);
 		vkDestroyImageView(dev_data.device, model.texture.img_view, nullptr);
@@ -129,16 +130,19 @@ void liboceanlight::engine::cleanup_images()
 void liboceanlight::engine::cleanup_descriptor_pool(
 	VkDevice& dev,
 	VkDescriptorPool& pool,
-	VkDescriptorSetLayout& layout)
+	std::vector<VkDescriptorSetLayout>& layouts)
 {
 	if (pool)
 	{
 		vkDestroyDescriptorPool(dev, pool, nullptr);
 	}
 
-	if (layout)
+	for (const auto& layout : layouts)
 	{
-		vkDestroyDescriptorSetLayout(dev, layout, nullptr);
+		if (layout)
+		{
+			vkDestroyDescriptorSetLayout(dev, layout, nullptr);
+		}
 	}
 }
 
@@ -160,7 +164,7 @@ void liboceanlight::engine::cleanup_uniform_buffers()
 		}
 	}
 
-	for (auto& model : eng_data.model_list)
+	for (const auto& model : eng_data.model_list)
 	{
 		for (auto i {0}; i < engine::max_frames_in_flight; ++i)
 		{

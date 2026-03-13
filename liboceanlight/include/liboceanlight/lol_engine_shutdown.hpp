@@ -17,7 +17,7 @@ namespace liboceanlight::engine
 	void cleanup_uniform_buffers();
 	void cleanup_descriptor_pool(VkDevice&,
 								 VkDescriptorPool&,
-								 VkDescriptorSetLayout&);
+								 std::vector<VkDescriptorSetLayout>&);
 	void cleanup_pipeline();
 	void cleanup_commands(VkCommandPool);
 	void cleanup_semaphores();

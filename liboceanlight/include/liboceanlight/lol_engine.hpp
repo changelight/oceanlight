@@ -87,7 +87,7 @@ namespace liboceanlight::models
 		/*maybe do this:
 		std::array<liboceanlight::uniform::lol_uniform> uniforms;*/
 
-		VkDescriptorSet descriptor_set {nullptr};
+		std::array<VkDescriptorSet, 2> descriptor_sets {nullptr};
 		std::array<VkBuffer, engine::max_frames_in_flight> uniforms {nullptr};
 		std::array<VkDeviceMemory, engine::max_frames_in_flight> uniforms_mem {
 			nullptr};
@@ -188,7 +188,7 @@ namespace liboceanlight::engine
 
 		/* DESCRIPTOR */
 		VkDescriptorPool descriptor_pool {nullptr};
-		std::array<VkDescriptorSet, max_frames_in_flight> descriptor_sets;
+		// std::array<VkDescriptorSet, max_frames_in_flight> descriptor_sets;
 
 		/* DEPTH BUFFER */
 		// VkImage depth_img {nullptr};
@@ -217,11 +217,11 @@ namespace liboceanlight::engine
 	void update_uniform_buffer(liboceanlight::window&,
 							   uint32_t,
 							   double,
-							   liboceanlight::models::lol_model&);
+							   std::vector<liboceanlight::models::lol_model>&);
 	void update_descriptor_sets(VkBuffer*,
 								VkImageView&,
 								VkSampler&,
-								VkDescriptorSet&,
+								std::array<VkDescriptorSet, 2>&,
 								uint32_t,
 								uint32_t);
 	void update_camera(liboceanlight::window&, float);
